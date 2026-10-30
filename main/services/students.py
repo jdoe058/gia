@@ -79,3 +79,16 @@ def create_student(group, last_name, first_name, middle_name=''):
     )
     return student
 
+@transaction.atomic
+def regenerate_password(student):
+    """
+    Генерирует новый пароль студенту и синхронно обновляет
+    User.password (хеш) и Student.plain_password.
+    """
+    password = _unique_password(student.group)
+    student.user.set_password(password)
+    student.user.save(update_fields=['password'])
+    student.plain_password = password
+    student.save(update_fields=['plain_password'])
+    return password
+
