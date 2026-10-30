@@ -1,10 +1,42 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import path
 
 from .models import Group, Specialty, Student
-from .services import regenerate_password
+from .services import regenerate_password, build_import_template_xlsx
+
+XLSX_CONTENT_TYPE = (
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+)
+
+def download_template_view(request):
+    buffer = build_import_template_xlsx()
+    response = HttpResponse(buffer.getvalue(), content_type=XLSX_CONTENT_TYPE)
+    response['Content-Disposition'] = (
+        'attachment; filename="import_students_template.xlsx"'
+    )
+    return response
+
+
+# Добавляем /admin/download-template/ к стандартному admin.site
+_original_admin_get_urls = admin.site.get_urls
+
+
+def _admin_get_urls_with_extras():
+    custom = [
+        path(
+            'download-template/',
+            admin.site.admin_view(download_template_view),
+            name='main_download_students_template',
+        ),
+    ]
+    return custom + _original_admin_get_urls()
+
+
+admin.site.get_urls = _admin_get_urls_with_extras
+admin.site.index_template = 'admin/custom_index.html'
 
 User = get_user_model()
 

@@ -1,0 +1,16 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+    <div class="module" style="margin-bottom: 20px;">
+        <h2>Загрузка студентов</h2>
+        <p style="margin-bottom: 10px;">
+            Шаблон XLSX для загрузки списка студентов в группу.
+            Загрузка выполняется на странице нужной группы.
+        </p>
+        <a href="{% url 'admin:main_download_students_template' %}" class="button">
+            Скачать шаблон XLSX
+        </a>
+    </div>
+    {{ block.super }}
+{% endblock %}
+
