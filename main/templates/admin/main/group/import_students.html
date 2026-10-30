@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <p>
+        Загрузка студентов из XLSX в группу
+        <strong>{{ group.name }}</strong> (слаг: <code>{{ group.slug }}</code>).
+    </p>
+    <p>
+        <a href="{% url 'admin:main_download_students_template' %}">
+            Скачать шаблон XLSX
+        </a>
+    </p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            {% for field in form %}
+                <div class="form-row">
+                    {{ field.errors }}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                        <p class="help">{{ field.help_text }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="Загрузить" class="default">
+            <a href="{% url 'admin:main_group_change' group.pk %}" class="button cancel-link">
+                Отмена
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

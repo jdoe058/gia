@@ -1,0 +1,18 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+    {{ block.super }}
+    {% if change %}
+        <div class="submit-row">
+            <a href="{% url 'admin:main_group_import_students' original.pk %}" class="button">
+                Импорт студентов из XLSX
+            </a>
+        </div>
+        {% if original.students.exists %}
+            <p style="margin-top: 10px; color: #ba2121;">
+                В группе уже есть студенты. Импорт нового списка запрещён —
+                удалите группу целиком.
+            </p>
+        {% endif %}
+    {% endif %}
+{% endblock %}

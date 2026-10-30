@@ -1,11 +1,19 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.http import HttpResponse, HttpResponseRedirect
-from django.urls import path
+from django.urls import path, reverse
+from django.core.exceptions import ValidationError
+from django.template.response import TemplateResponse
 
 from .models import Group, Specialty, Student
-from .services import regenerate_password, build_import_template_xlsx
+
+from .forms import StudentImportForm
+from .services import (
+    build_import_template_xlsx,
+    import_students_from_xlsx,
+    regenerate_password,
+)
 
 XLSX_CONTENT_TYPE = (
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -52,11 +60,58 @@ class GroupAdmin(admin.ModelAdmin):
     list_display = ('name', 'slug', 'course', 'financing', 'base', 'specialty')
     list_filter = ('course', 'financing', 'base', 'specialty')
     search_fields = ('name', 'slug')
+    change_form_template = 'admin/main/group/change_form.html'
 
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
             return ()
         return ('slug',)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<path:object_id>/import-students/',
+                self.admin_site.admin_view(self.import_students_view),
+                name='main_group_import_students',
+            ),
+        ]
+        return custom + urls
+
+    def import_students_view(self, request, object_id):
+        group = self.get_object(request, object_id)
+        if group is None:
+            return HttpResponseRedirect(reverse('admin:main_group_changelist'))
+
+        if request.method == 'POST':
+            form = StudentImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                try:
+                    count = import_students_from_xlsx(group, form.cleaned_data['file'])
+                except ValidationError as exc:
+                    for msg in exc.messages:
+                        self.message_user(request, msg, level=messages.ERROR)
+                else:
+                    self.message_user(
+                        request,
+                        f'Импортировано студентов в группу «{group.name}»: {count}.',
+                    )
+                    return HttpResponseRedirect(
+                        reverse('admin:main_group_change', args=[group.pk])
+                    )
+        else:
+            form = StudentImportForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': f'Импорт студентов в группу «{group.name}»',
+            'form': form,
+            'group': group,
+            'opts': self.model._meta,
+        }
+        return TemplateResponse(
+            request, 'admin/main/group/import_students.html', context
+        )
 
 
 @admin.register(Student)
