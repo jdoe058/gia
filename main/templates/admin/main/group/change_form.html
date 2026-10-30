@@ -7,6 +7,9 @@
             <a href="{% url 'admin:main_group_import_students' original.pk %}" class="button">
                 Импорт студентов из XLSX
             </a>
+            <a href="{% url 'admin:main_group_export_handout' original.pk %}" class="button">
+                Скачать раздатку XLSX
+            </a>
         </div>
         {% if original.students.exists %}
             <p style="margin-top: 10px; color: #ba2121;">

@@ -1,3 +1,4 @@
+from datetime import date
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -11,6 +12,7 @@ from .models import Group, Specialty, Student
 from .forms import StudentImportForm
 from .services import (
     build_import_template_xlsx,
+    export_group_xlsx,
     import_students_from_xlsx,
     regenerate_password,
 )
@@ -75,6 +77,11 @@ class GroupAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.import_students_view),
                 name='main_group_import_students',
             ),
+            path(
+                '<path:object_id>/export-handout/',
+                self.admin_site.admin_view(self.export_handout_view),
+                name='main_group_export_handout',
+            ),
         ]
         return custom + urls
 
@@ -112,6 +119,25 @@ class GroupAdmin(admin.ModelAdmin):
         return TemplateResponse(
             request, 'admin/main/group/import_students.html', context
         )
+    
+    def export_handout_view(self, request, object_id):
+        group = self.get_object(request, object_id)
+        if group is None:
+            return HttpResponseRedirect(reverse('admin:main_group_changelist'))
+
+        if not group.students.exists():
+            self.message_user(
+                request,
+                f'В группе «{group.name}» нет студентов — раздатка будет пустой.',
+                level=messages.WARNING,
+            )
+
+        buffer = export_group_xlsx(group)
+        safe_slug = group.slug.replace('/', '-')
+        filename = f'handout_{safe_slug}_{date.today().strftime("%Y-%m-%d")}.xlsx'
+        response = HttpResponse(buffer.getvalue(), content_type=XLSX_CONTENT_TYPE)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
 
 @admin.register(Student)

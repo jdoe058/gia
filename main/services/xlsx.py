@@ -1,4 +1,5 @@
 import io
+from datetime import date
 
 from openpyxl import Workbook, load_workbook
 
@@ -16,6 +17,55 @@ TEMPLATE_EXAMPLES = [
 ]
 
 IMPORT_HEADERS = ('Фамилия', 'Имя', 'Отчество')
+
+
+def export_group_xlsx(group):
+    """
+    Возвращает BytesIO с XLSX-раздаткой для группы.
+
+    Структура:
+    - строка 1: специальность, группа, дата одной строкой через запятую;
+    - строка 2: пустая (отступ перед таблицей);
+    - строка 3: заголовки колонок (ФИО, Логин, Пароль);
+    - строки 4+: студенты, отсортированные по slug.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Раздатка'
+
+    specialty = group.specialty
+    title = (
+        f'{specialty.name} ({specialty.code}), '
+        f'{group.name}, '
+        f'{date.today().strftime("%d.%m.%Y")}'
+    )
+    ws.append([title])
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=3)
+    ws.cell(row=1, column=1).font = ws.cell(row=1, column=1).font.copy(
+        bold=True, size=12
+    )
+    ws.cell(row=1, column=1).alignment = ws.cell(row=1, column=1).alignment.copy(
+        horizontal='center'
+    )
+
+    ws.append([])
+
+    ws.append(['ФИО', 'Логин', 'Пароль'])
+    for cell in ws[3]:
+        cell.font = cell.font.copy(bold=True)
+
+    students = group.students.select_related('user').order_by('slug')
+    for student in students:
+        ws.append([student.full_name_short, student.login, student.plain_password])
+
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 12
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
 
 def build_import_template_xlsx():
     """
