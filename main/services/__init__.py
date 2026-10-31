@@ -5,6 +5,7 @@ from .xlsx import (
     build_import_template_xlsx,
     export_group_xlsx,
     export_specialty_questions_xlsx,
+    import_specialty_questions_xlsx,  
     import_students_from_xlsx,
 )
 
@@ -17,6 +18,7 @@ __all__ = [
     'export_specialty_questions_xlsx',
     'generate_login',
     'generate_password',
+    'import_specialty_questions_xlsx', 
     'import_students_from_xlsx',
     'regenerate_password',
 ]

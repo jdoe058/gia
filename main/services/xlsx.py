@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from .students import create_student
+from main.models import Answer, Question
 
 TEMPLATE_HEADERS = ['Фамилия', 'Имя', 'Отчество']
 TEMPLATE_EXAMPLES = [
@@ -66,6 +67,7 @@ def export_group_xlsx(group):
     wb.save(buffer)
     buffer.seek(0)
     return buffer
+
 
 def build_import_template_xlsx():
     """
@@ -248,4 +250,132 @@ def export_specialty_questions_xlsx(specialty):
     wb.save(buffer)
     buffer.seek(0)
     return buffer
+
+
+QUESTIONS_HEADERS = ('Вопрос', 'Ответ', 'Правильный')
+CORRECT_FLAG_VALUES = {'да', '1', 'true', 'yes'}
+
+
+def import_specialty_questions_xlsx(specialty, file_obj):
+    """
+    Импортирует вопросы специальности из XLSX.
+
+    Формат:
+    - заголовки: Вопрос | Ответ | Правильный
+    - одна строка = один ответ; ячейка вопроса объединена на все ответы
+    - «Правильный»: «да» (или 1/true/yes) у правильного, пусто у остальных
+    - у вопроса минимум 2 ответа, ровно 1 правильный
+
+    Требования:
+    - специальность пуста
+    - при любой ошибке — откат всей транзакции
+
+    Возвращает количество созданных вопросов.
+    """
+    if specialty.questions.exists():
+        raise ValidationError(
+            f'У специальности «{specialty.name}» уже есть вопросы. '
+            f'Удалите их перед повторной загрузкой.'
+        )
+
+    try:
+        wb = load_workbook(file_obj, data_only=True)
+    except Exception as exc:
+        raise ValidationError(f'Не удалось прочитать файл: {exc}')
+
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+
+    if not rows:
+        raise ValidationError('Файл пуст.')
+
+    header = tuple(
+        (c or '').strip() if c is not None else ''
+        for c in rows[0][:3]
+    )
+    if header != QUESTIONS_HEADERS:
+        raise ValidationError(
+            f'Неверные заголовки. Ожидается: {", ".join(QUESTIONS_HEADERS)}. '
+            f'Получено: {", ".join(header)}.'
+        )
+
+    errors = []
+    blocks = []  # [(текст_вопроса, [(текст_ответа, is_correct), ...]), ...]
+    cur_text = None
+    cur_row = None
+    cur_answers = []
+
+    def _flush():
+        nonlocal cur_text, cur_row, cur_answers
+        if cur_text is None:
+            return
+        if not cur_answers:
+            errors.append(f'Строка {cur_row}: у вопроса нет ответов.')
+        elif len(cur_answers) < 2:
+            errors.append(f'Строка {cur_row}: у вопроса меньше 2 ответов.')
+        else:
+            correct = sum(1 for _, c in cur_answers if c)
+            if correct != 1:
+                errors.append(
+                    f'Строка {cur_row}: у вопроса {correct} правильных ответов, '
+                    f'должен быть ровно 1.'
+                )
+            else:
+                blocks.append((cur_text, list(cur_answers)))
+        cur_text = None
+        cur_row = None
+        cur_answers = []
+
+    for idx, row in enumerate(rows[1:], start=2):
+        cells = list(row[:3]) + [None] * (3 - len(row[:3]))
+        raw_q, raw_a, raw_f = cells[0], cells[1], cells[2]
+
+        # полностью пустая строка — пропускаем
+        if raw_q is None and raw_a is None and raw_f is None:
+            continue
+
+        q_cell = (raw_q or '').strip() if raw_q is not None else None
+        a_cell = (raw_a or '').strip() if raw_a is not None else ''
+        f_cell = (raw_f or '').strip() if raw_f is not None else ''
+
+        if raw_q is not None:
+            # новая строка вопроса — закрываем предыдущий блок
+            _flush()
+            if not q_cell:
+                errors.append(f'Строка {idx}: пустой текст вопроса.')
+                continue
+            cur_text = q_cell
+            cur_row = idx
+            cur_answers = []
+        elif cur_text is None:
+            errors.append(f'Строка {idx}: ответ без вопроса.')
+            continue
+
+        if not a_cell:
+            errors.append(f'Строка {idx}: пустой текст ответа.')
+            continue
+
+        cur_answers.append((a_cell, f_cell.lower() in CORRECT_FLAG_VALUES))
+
+    _flush()
+
+    if errors:
+        raise ValidationError(errors)
+
+    if not blocks:
+        raise ValidationError('В файле нет ни одного вопроса.')
+
+    try:
+        with transaction.atomic():
+            for q_text, answers in blocks:
+                question = Question.objects.create(specialty=specialty, text=q_text)
+                Answer.objects.bulk_create([
+                    Answer(question=question, text=a_text, is_correct=is_c)
+                    for a_text, is_c in answers
+                ])
+    except IntegrityError as exc:
+        raise ValidationError(f'Ошибка при сохранении: {exc}')
+
+    return len(blocks)
 
