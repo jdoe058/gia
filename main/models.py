@@ -131,3 +131,41 @@ class Student(models.Model):
     def __str__(self):
         return f'{self.full_name_short} ({self.login})'
 
+
+class Question(models.Model):
+    specialty = models.ForeignKey(
+        Specialty,
+        on_delete=models.CASCADE,
+        related_name='questions',
+        verbose_name='Специальность',
+    )
+    text = models.TextField('Текст вопроса')
+    created_at = models.DateTimeField('Создан', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Вопрос'
+        verbose_name_plural = 'Вопросы'
+        ordering = ['specialty', 'id']
+
+    def __str__(self):
+        return self.text[:80]
+
+
+class Answer(models.Model):
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.CASCADE,
+        related_name='answers',
+        verbose_name='Вопрос',
+    )
+    text = models.TextField('Текст ответа')
+    is_correct = models.BooleanField('Правильный', default=False)
+
+    class Meta:
+        verbose_name = 'Ответ'
+        verbose_name_plural = 'Ответы'
+        ordering = ['id']
+
+    def __str__(self):
+        return self.text[:80]
+    

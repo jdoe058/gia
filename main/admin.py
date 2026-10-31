@@ -7,7 +7,7 @@ from django.urls import path, reverse
 from django.core.exceptions import ValidationError
 from django.template.response import TemplateResponse
 
-from .models import Group, Specialty, Student
+from .models import Answer, Group, Question, Specialty, Student
 
 from .forms import StudentImportForm
 from .services import (
@@ -212,4 +212,27 @@ class UserAdmin(BaseUserAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+
+class AnswerInline(admin.TabularInline):
+    model = Answer
+    extra = 0
+    fields = ('text', 'is_correct')
+
+
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'short_text', 'specialty', 'answers_count')
+    list_filter = ('specialty',)
+    search_fields = ('text',)
+    inlines = [AnswerInline]
+    readonly_fields = ('created_at',)
+
+    @admin.display(description='Текст')
+    def short_text(self, obj):
+        return obj.text[:80]
+
+    @admin.display(description='Ответов')
+    def answers_count(self, obj):
+        return obj.answers.count()
 
