@@ -1,0 +1,21 @@
+{% extends "main/base.html" %}
+
+{% block title %}Личный кабинет — ГИА{% endblock %}
+
+{% block content %}
+    <h1>Личный кабинет</h1>
+
+    <p>
+        Здравствуйте, <strong>{{ user.student_profile.full_name_short }}</strong>.
+    </p>
+    <p>
+        Специальность: {{ user.student_profile.group.specialty.name }}<br>
+        Группа: {{ user.student_profile.group.name }}
+    </p>
+
+    <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
+
+    <p style="color: #666;">
+        Тестирование скоро будет доступно. Следите за объявлениями.
+    </p>
+{% endblock %}

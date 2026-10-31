@@ -1,0 +1,37 @@
+{% extends "main/base.html" %}
+
+{% block title %}Вход — ГИА{% endblock %}
+
+{% block content %}
+    <h1>Вход в систему</h1>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <ul class="errorlist">
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <div class="form-row">
+            {{ form.username.label_tag }}
+            {{ form.username }}
+            {{ form.username.errors }}
+        </div>
+
+        <div class="form-row">
+            {{ form.password.label_tag }}
+            {{ form.password }}
+            {{ form.password.errors }}
+        </div>
+
+        <button type="submit" class="btn">Войти</button>
+    </form>
+
+    <p style="margin-top: 24px; color: #666; font-size: 14px;">
+        Логин и пароль выдаёт администратор колледжа.
+    </p>
+{% endblock %}

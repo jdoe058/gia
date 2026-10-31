@@ -15,3 +15,18 @@ class StudentImportForm(forms.Form):
             raise forms.ValidationError('Файл слишком большой (максимум 1 МБ).')
         return f
 
+
+class StudentLoginForm(forms.Form):
+    username = forms.CharField(
+        label='Логин',
+        max_length=150,
+        widget=forms.TextInput(attrs={'autofocus': True, 'autocomplete': 'username'}),
+    )
+    password = forms.CharField(
+        label='Пароль',
+        widget=forms.PasswordInput(attrs={'autocomplete': 'current-password'}),
+    )
+
+    def clean_username(self):
+        return self.cleaned_data['username'].strip().lower()
+
