@@ -1,20 +1,12 @@
-import io
+
 import pytest
 from django.core.exceptions import ValidationError
-from django.utils import timezone
-from django.core.files.uploadedfile import SimpleUploadedFile
+
 from openpyxl import load_workbook
 
-from main.models import ReportTemplate, ComputerMapping, Commission
-from main.services.xlsx import build_report_template_xlsx, export_student_report_xlsx
-from main.services.testing import finish_test, start_test_session
-
-
-@pytest.fixture
-def setup_template(db):
-    buffer = build_report_template_xlsx()
-    file = SimpleUploadedFile('template.xlsx', buffer.read(), content_type='application/vnd...')
-    return ReportTemplate.objects.create(template_type='individual', file=file)
+from main.models import ComputerMapping, Commission
+from main.services.xlsx import export_student_report_xlsx
+from main.services.testing import finish_test
 
 
 @pytest.fixture

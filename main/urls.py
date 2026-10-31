@@ -10,5 +10,6 @@ urlpatterns = [
     path('test/<int:session_id>/', views.test_view, name='test'),
     path('test/<int:session_id>/answer/', views.answer_view, name='answer'),
     path('test/<int:session_id>/result/', views.result_view, name='test_result'),
+    path('test/<int:session_id>/report/', views.student_report_view, name='student_report'),
 ]
 

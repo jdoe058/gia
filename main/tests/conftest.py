@@ -1,12 +1,13 @@
 import io
-
 import pytest
+
 from openpyxl import Workbook
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
 
-from main.models import Answer, Question, Specialty
-from main.services import start_test_session
+from main.models import Answer, Question, ReportTemplate, Specialty
+from main.services import start_test_session, build_report_template_xlsx
 
 
 @pytest.fixture
@@ -98,4 +99,11 @@ def active_session(student_user, make_questions):
     """Готовая сессия студента с 80 вопросами."""
     make_questions(student_user.group.specialty, 100)
     return start_test_session(student_user)
+
+
+@pytest.fixture
+def setup_template(db):
+    buffer = build_report_template_xlsx()
+    file = SimpleUploadedFile('template.xlsx', buffer.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    return ReportTemplate.objects.create(template_type='individual', file=file)
 

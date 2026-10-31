@@ -4,12 +4,15 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 
+from main.services.xlsx import export_student_report_xlsx, get_client_ip
+
 from .forms import StudentLoginForm
-from .models import Answer, SessionQuestion, TestSession
+from .models import Answer, TestSession
 from .services import answer_question, finish_test, start_test_session
 
 
@@ -208,4 +211,33 @@ def result_view(request, session_id):
         'wrong_questions': wrong_questions,
     }
     return render(request, 'main/result.html', context)
+
+
+@login_required
+def student_report_view(request, session_id):
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('login')
+
+    student = request.user.student_profile
+    session = get_object_or_404(TestSession, id=session_id, student=student)
+
+    if not session.is_finished:
+        messages.error(request, 'Сначала завершите тестирование, чтобы скачать отчёт.')
+        return redirect('student_dashboard')
+
+    try:
+        client_ip = get_client_ip(request)
+        buffer = export_student_report_xlsx(student, session, client_ip)
+    except ValidationError as exc:
+        for msg in exc.messages:
+            messages.error(request, msg)
+        return redirect('student_dashboard')
+
+    filename = f'report_{student.login}_{timezone.now().strftime("%y%m%d")}.xlsx'
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 

@@ -29,6 +29,11 @@
                 <strong style="color: #c53030;">Незачёт</strong>
             {% endif %}
         </p>
+        <div style="margin-top: 16px;">
+            <a href="{% url 'student_report' finished_session.id %}" class="btn">
+                Скачать отчёт (XLSX)
+            </a>
+        </div>
     {% elif active_session %}
         <h2 style="font-size: 20px; margin-bottom: 12px;">Тест начат</h2>
         <p>
