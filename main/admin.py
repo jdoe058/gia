@@ -13,6 +13,8 @@ from .forms import StudentImportForm
 from .services import (
     build_import_template_xlsx,
     export_group_xlsx,
+    export_specialty_questions_xlsx,
+    import_specialty_questions_xlsx,
     import_students_from_xlsx,
     regenerate_password,
 )
@@ -55,12 +57,103 @@ User = get_user_model()
 class SpecialtyAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'slug')
     search_fields = ('code', 'name', 'slug')
-    readonly_fields = ('slug',)
+    change_form_template = 'admin/main/specialty/change_form.html'
 
     def get_readonly_fields(self, request, obj=None):
         if obj is None:
             return ()
         return ('slug',)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<path:object_id>/export-questions/',
+                self.admin_site.admin_view(self.export_questions_view),
+                name='main_specialty_export_questions',
+            ),
+            path(
+                '<path:object_id>/import-questions/',
+                self.admin_site.admin_view(self.import_questions_view),
+                name='main_specialty_import_questions',
+            ),
+            path(
+                '<path:object_id>/download-questions-template/',
+                self.admin_site.admin_view(self.download_questions_template_view),
+                name='main_specialty_download_questions_template',
+            ),
+        ]
+        return custom + urls
+
+    def export_questions_view(self, request, object_id):
+        specialty = self.get_object(request, object_id)
+        if specialty is None:
+            return HttpResponseRedirect(reverse('admin:main_specialty_changelist'))
+
+        buffer = export_specialty_questions_xlsx(specialty)
+        filename = f'{specialty.slug}_{date.today().strftime("%y%m%d")}.xlsx'
+        response = HttpResponse(buffer.getvalue(), content_type=XLSX_CONTENT_TYPE)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    def download_questions_template_view(self, request, object_id):
+        specialty = self.get_object(request, object_id)
+        if specialty is None:
+            return HttpResponseRedirect(reverse('admin:main_specialty_changelist'))
+
+        # Шаблон = экспорт пустой специальности (только шапка).
+        # Но текущая specialty может быть не пуста — экспорт отдаст все вопросы.
+        # Поэтому собираем файл с одной шапкой вручную.
+        from openpyxl import Workbook
+        import io
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Вопросы'
+        ws.append(['Вопрос', 'Ответ', 'Правильный'])
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        filename = f'{specialty.slug}_template.xlsx'
+        response = HttpResponse(buffer.getvalue(), content_type=XLSX_CONTENT_TYPE)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    def import_questions_view(self, request, object_id):
+        specialty = self.get_object(request, object_id)
+        if specialty is None:
+            return HttpResponseRedirect(reverse('admin:main_specialty_changelist'))
+
+        if request.method == 'POST':
+            file = request.FILES.get('file')
+            if file is None:
+                self.message_user(
+                    request, 'Файл не выбран.', level=messages.ERROR,
+                )
+            else:
+                try:
+                    count = import_specialty_questions_xlsx(specialty, file)
+                except ValidationError as exc:
+                    for msg in exc.messages:
+                        self.message_user(request, msg, level=messages.ERROR)
+                else:
+                    self.message_user(
+                        request,
+                        f'Импортировано вопросов: {count}.',
+                    )
+                    return HttpResponseRedirect(
+                        reverse('admin:main_specialty_change', args=[specialty.pk])
+                    )
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': f'Импорт вопросов: {specialty.name}',
+            'specialty': specialty,
+            'opts': self.model._meta,
+        }
+        return TemplateResponse(
+            request, 'admin/main/specialty/import_questions.html', context,
+        )
 
 
 @admin.register(Group)

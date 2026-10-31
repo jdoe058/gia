@@ -1,0 +1,34 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <p>
+        Импорт вопросов из XLSX в специальность
+        <strong>{{ specialty.name }}</strong> (слаг: <code>{{ specialty.slug }}</code>).
+    </p>
+    <p>
+        <a href="{% url 'admin:main_specialty_download_questions_template' specialty.pk %}">
+            Скачать шаблон XLSX
+        </a>
+    </p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <label for="id_file">XLSX-файл:</label>
+                <input type="file" name="file" id="id_file" required accept=".xlsx">
+                <p class="help">
+                    Колонки: Вопрос | Ответ | Правильный. Одна строка — один ответ.
+                    Правильный ответ — «да» (или 1/true/yes), остальные — пусто.
+                </p>
+            </div>
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="Импортировать" class="default">
+            <a href="{% url 'admin:main_specialty_change' specialty.pk %}" class="button cancel-link">
+                Отмена
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
