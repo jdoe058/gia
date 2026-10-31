@@ -1,6 +1,7 @@
 from .logins import generate_login
 from .passwords import PASSWORD_ALPHABET, PASSWORD_LENGTH, generate_password
 from .students import create_student, regenerate_password
+from .testing import start_test_session
 from .xlsx import (
     build_import_template_xlsx,
     export_group_xlsx,
@@ -21,5 +22,6 @@ __all__ = [
     'import_specialty_questions_xlsx', 
     'import_students_from_xlsx',
     'regenerate_password',
+    'start_test_session',
 ]
 

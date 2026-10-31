@@ -172,6 +172,7 @@ class Answer(models.Model):
 
 
 class TestSession(models.Model):
+    __test__ = False
     student = models.ForeignKey(
         Student,
         on_delete=models.CASCADE,

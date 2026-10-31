@@ -69,3 +69,24 @@ def admin_user(db):
         username='admin', password='adminpass123',
     )
 
+
+@pytest.fixture
+def make_questions():
+    """
+    Возвращает функцию, которая создаёт N вопросов с 4 ответами
+    (первый правильный) в указанной специальности.
+    """
+    def _make(specialty, count):
+        for i in range(count):
+            q = Question.objects.create(
+                specialty=specialty,
+                text=f'Вопрос {i + 1}',
+            )
+            for j, correct in enumerate([True, False, False, False]):
+                Answer.objects.create(
+                    question=q,
+                    text=f'Ответ {i + 1}.{j + 1}',
+                    is_correct=correct,
+                )
+
+    return _make
