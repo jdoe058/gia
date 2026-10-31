@@ -2,10 +2,10 @@ import io
 from datetime import date
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Alignment, Border, Side
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from openpyxl import Workbook, load_workbook
 
 from .students import create_student
 
@@ -168,4 +168,84 @@ def import_students_from_xlsx(group, file_obj):
         raise ValidationError(f'Ошибка при сохранении: {exc}')
 
     return len(valid_rows)
+
+
+def export_specialty_questions_xlsx(specialty):
+    """
+    Возвращает BytesIO с XLSX-файлом вопросов специальности.
+
+    Формат:
+    - колонки: Вопрос | Ответ | Правильный
+    - одна строка = один ответ
+    - ячейка вопроса объединена на все ответы вопроса
+    - в колонке «Правильный» — «да» у правильного ответа, пусто у остальных
+    - текст вопросов и ответов переносится по словам
+    - начало каждого вопроса отделено горизонтальной чертой
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Вопросы'
+
+    ws.append(['Вопрос', 'Ответ', 'Правильный'])
+    for cell in ws[1]:
+        cell.font = cell.font.copy(bold=True)
+
+    wrap_top = Alignment(wrap_text=True, vertical='top', horizontal='left')
+    wrap_center = Alignment(wrap_text=True, vertical='top', horizontal='center')
+    top_border = Border(top=Side(style='thin', color='999999'))
+
+    questions = specialty.questions.prefetch_related('answers').order_by('id')
+
+    current_row = 2
+    for question in questions:
+        answers = list(question.answers.all())
+
+        if not answers:
+            cell_q = ws.cell(row=current_row, column=1, value=question.text)
+            cell_q.alignment = wrap_top
+            cell_q.border = top_border
+            ws.cell(row=current_row, column=2, value='').alignment = wrap_top
+            ws.cell(row=current_row, column=2).border = top_border
+            ws.cell(row=current_row, column=3, value='').alignment = wrap_center
+            ws.cell(row=current_row, column=3).border = top_border
+            current_row += 1
+            continue
+
+        start_row = current_row
+        for idx, answer in enumerate(answers):
+            cell_q = ws.cell(
+                row=current_row, column=1,
+                value=question.text if idx == 0 else None,
+            )
+            cell_a = ws.cell(row=current_row, column=2, value=answer.text)
+            cell_c = ws.cell(
+                row=current_row, column=3,
+                value='да' if answer.is_correct else '',
+            )
+            cell_q.alignment = wrap_top
+            cell_a.alignment = wrap_top
+            cell_c.alignment = wrap_center
+
+            if idx == 0:
+                cell_q.border = top_border
+                cell_a.border = top_border
+                cell_c.border = top_border
+
+            current_row += 1
+
+        end_row = current_row - 1
+        if end_row > start_row:
+            ws.merge_cells(
+                start_row=start_row, start_column=1,
+                end_row=end_row, end_column=1,
+            )
+
+    ws.column_dimensions['A'].width = 60
+    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['C'].width = 12
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
 

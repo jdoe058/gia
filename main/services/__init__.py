@@ -4,6 +4,7 @@ from .students import create_student, regenerate_password
 from .xlsx import (
     build_import_template_xlsx,
     export_group_xlsx,
+    export_specialty_questions_xlsx,
     import_students_from_xlsx,
 )
 
@@ -13,6 +14,7 @@ __all__ = [
     'build_import_template_xlsx',
     'create_student',
     'export_group_xlsx',
+    'export_specialty_questions_xlsx',
     'generate_login',
     'generate_password',
     'import_students_from_xlsx',
