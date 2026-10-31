@@ -5,6 +5,9 @@
     {% if change %}
         <div class="submit-row">
             <input type="submit" value="Сгенерировать новый пароль" name="_regenerate_password">
+            <a href="{% url 'admin:main_student_export_report' original.pk %}" class="button">
+                Скачать отчёт студента XLSX
+            </a>
         </div>
     {% endif %}
 {% endblock %}

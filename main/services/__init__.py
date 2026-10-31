@@ -13,6 +13,7 @@ from .xlsx import (
     export_computer_mapping_xlsx,
     export_student_report_xlsx,
     get_client_ip,
+    export_group_summary_xlsx,
 )
 
 __all__ = [
@@ -35,5 +36,6 @@ __all__ = [
     'export_student_report_xlsx',
     'get_client_ip',
     'build_report_template_xlsx',    
+    'export_group_summary_xlsx',
 ]
 

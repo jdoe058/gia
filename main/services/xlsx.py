@@ -502,16 +502,16 @@ def export_computer_mapping_xlsx():
 
 def build_report_template_xlsx():
     """
-    Возвращает BytesIO с XLSX-шаблоном индивидуального отчёта.
-    Содержит плейсхолдеры для заполнения.
+    Генерирует универсальный шаблон отчёта (подходит и для группы, и для студента).
     """
     wb = Workbook()
     ws = wb.active
     ws.title = 'Отчёт'
 
-    bold_font = Font(bold=True)
     center_align = Alignment(horizontal='center', vertical='center')
+    bold_font = Font(bold=True)
     
+    # Шапка
     ws.append(['ГОСУДАРСТВЕННАЯ ИТОГОВАЯ АТТЕСТАЦИЯ'])
     ws.cell(row=1, column=1).font = Font(bold=True, size=14)
     ws.cell(row=1, column=1).alignment = center_align
@@ -521,36 +521,35 @@ def build_report_template_xlsx():
     ws.append(['Группа:', '{{group_name}}'])
     ws.append(['Дата:', '{{report_date}}'])
     
+    # Таблица
     ws.append([])
-    ws.append(['ВЫПИСКА О РЕЗУЛЬТАТАХ ТЕСТИРОВАНИЯ'])
-    ws.cell(row=7, column=1).font = bold_font
-    ws.cell(row=7, column=1).alignment = center_align
+    headers = ['№', 'ФИО', 'Логин', 'Компьютер', 'Правильных', 'Всего', 'Процент', 'Результат']
+    ws.append(headers)
+    header_row = ws.max_row
+    for cell in ws[header_row]:
+        cell.font = bold_font
+        cell.alignment = center_align
     
-    ws.append([])
-    ws.append(['Студент:', '{{student_full_name}}'])
-    ws.append(['Логин:', '{{student_login}}'])
-    ws.append(['Номер компьютера:', '{{computer_number}}'])
-    ws.append(['Начало тестирования:', '{{test_started_at}}'])
-    ws.append(['Завершение тестирования:', '{{test_finished_at}}'])
+    # Маркер начала данных
+    ws.append(['{{data_start}}'])
     
-    ws.append([])
-    ws.append(['Результат:', '{{result}}'])
-    ws.cell(row=14, column=2).font = bold_font
-    ws.append(['Правильных ответов:', '{{correct_count}} из {{total_questions}} ({{percent}}%)'])
-    
-    ws.append([])
-    ws.append(['Состав комиссии:'])
-    ws.append(['Председатель:', '{{commission_chairman}}'])
-    ws.append(['Члены комиссии:', '{{commission_member1}}, {{commission_member2}}, {{commission_member3}}'])
-    ws.append(['Секретарь:', '{{commission_secretary}}'])
-    
+    # Подвал с подписями
     ws.append([])
     ws.append([])
-    ws.append(['Подпись студента: _________________'])
-    ws.append(['Подпись председателя: _________________'])
+    ws.append(['Председатель:', '{{commission_chairman}}', '_______________'])
+    ws.append(['Член комиссии:', '{{commission_member1}}', '_______________'])
+    ws.append(['Член комиссии:', '{{commission_member2}}', '_______________'])
+    ws.append(['Член комиссии:', '{{commission_member3}}', '_______________'])
+    ws.append(['Секретарь:', '{{commission_secretary}}', '_______________'])
 
-    ws.column_dimensions['A'].width = 30
-    ws.column_dimensions['B'].width = 50
+    ws.column_dimensions['A'].width = 5
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 12
+    ws.column_dimensions['F'].width = 10
+    ws.column_dimensions['G'].width = 10
+    ws.column_dimensions['H'].width = 15
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -567,22 +566,17 @@ def get_client_ip(request):
 
 
 def export_student_report_xlsx(student, session, client_ip=''):
-    """
-    Заполняет шаблон индивидуального отчёта данными студента.
-    Возвращает BytesIO.
-    """
     from main.models import ComputerMapping, ReportTemplate
 
     template = ReportTemplate.objects.filter(template_type='individual').first()
     if not template or not template.file:
-        raise ValidationError('Шаблон индивидуального отчёта не загружен в систему.')
+        raise ValidationError('Шаблон индивидуального отчёта не загружен (тип individual).')
 
     try:
         wb = load_workbook(template.file.path)
     except Exception as exc:
-        raise ValidationError(f'Не удалось открыть шаблон отчёта: {exc}')
+        raise ValidationError(f'Не удалось открыть шаблон: {exc}')
 
-    # Подготовка данных
     computer_number = ''
     if client_ip:
         mapping = ComputerMapping.objects.filter(ip=client_ip).first()
@@ -591,25 +585,20 @@ def export_student_report_xlsx(student, session, client_ip=''):
 
     commission = getattr(student.group, 'commission', None)
     
-    started_at = session.started_at.strftime('%d.%m.%Y %H:%M') if session.started_at else ''
-    finished_at = session.finished_at.strftime('%d.%m.%Y %H:%M') if session.finished_at else ''
-    
-    result_text = 'Зачёт' if session.passed else 'Незачёт'
+    if session:
+        result_text = 'Зачёт' if session.passed else 'Незачёт'
+        row_data = [
+            '1', student.full_name_short, student.login, computer_number,
+            str(session.correct_count), str(session.total_questions),
+            f'{session.percent_correct}%'.replace('.', ','), result_text
+        ]
+    else:
+        row_data = ['1', student.full_name_short, student.login, '', '', '', '', 'Не проходил']
 
     replacements = {
-        '{{student_full_name}}': f'{student.last_name} {student.first_name} {student.middle_name}'.strip(),
-        '{{student_full_name_short}}': student.full_name_short,
-        '{{student_login}}': student.login,
-        '{{group_name}}': student.group.name,
-        '{{specialty_name}}': student.group.specialty.name,
         '{{specialty_code}}': student.group.specialty.code,
-        '{{correct_count}}': str(session.correct_count),
-        '{{total_questions}}': str(session.total_questions),
-        '{{percent}}': str(session.percent_correct).replace('.', ','),
-        '{{result}}': result_text,
-        '{{test_started_at}}': started_at,
-        '{{test_finished_at}}': finished_at,
-        '{{computer_number}}': computer_number,
+        '{{specialty_name}}': student.group.specialty.name,
+        '{{group_name}}': student.group.name,
         '{{report_date}}': timezone.now().strftime('%d.%m.%Y'),
         '{{commission_chairman}}': commission.chairman if commission else '',
         '{{commission_member1}}': commission.member1 if commission else '',
@@ -619,14 +608,84 @@ def export_student_report_xlsx(student, session, client_ip=''):
     }
 
     ws = wb.active
+    data_row_idx = None
     for row in ws.iter_rows():
         for cell in row:
+            if cell.value == '{{data_start}}':
+                data_row_idx = cell.row
             if isinstance(cell.value, str) and '{{' in cell.value:
-                val = cell.value
-                for key, replacement in replacements.items():
-                    if key in val:
-                        val = val.replace(key, replacement)
-                cell.value = val
+                for k, v in replacements.items():
+                    if k in cell.value:
+                        cell.value = cell.value.replace(k, v)
+
+    if data_row_idx:
+        for col_idx, val in enumerate(row_data, start=1):
+            ws.cell(row=data_row_idx, column=col_idx, value=val)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+def export_group_summary_xlsx(group):
+    from main.models import ReportTemplate, TestSession
+
+    template = ReportTemplate.objects.filter(template_type='summary').first()
+    if not template or not template.file:
+        raise ValidationError('Шаблон сводного отчёта не загружен (тип summary).')
+
+    try:
+        wb = load_workbook(template.file.path)
+    except Exception as exc:
+        raise ValidationError(f'Не удалось открыть шаблон: {exc}')
+
+    ws = wb.active
+    commission = getattr(group, 'commission', None)
+
+    replacements = {
+        '{{specialty_code}}': group.specialty.code,
+        '{{specialty_name}}': group.specialty.name,
+        '{{group_name}}': group.name,
+        '{{report_date}}': timezone.now().strftime('%d.%m.%Y'),
+        '{{commission_chairman}}': commission.chairman if commission else '',
+        '{{commission_member1}}': commission.member1 if commission else '',
+        '{{commission_member2}}': commission.member2 if commission else '',
+        '{{commission_member3}}': commission.member3 if commission else '',
+        '{{commission_secretary}}': commission.secretary if commission else '',
+    }
+
+    # Ищем маркер {{data_start}}
+    data_row_idx = None
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value == '{{data_start}}':
+                data_row_idx = cell.row
+            if isinstance(cell.value, str) and '{{' in cell.value:
+                for k, v in replacements.items():
+                    if k in cell.value:
+                        cell.value = cell.value.replace(k, v)
+
+    if data_row_idx is None:
+        raise ValidationError('В шаблоне не найден маркер {{data_start}}.')
+
+    # Заполняем студентов
+    students = group.students.order_by('slug')
+    for i, student in enumerate(students):
+        session = TestSession.objects.filter(student=student, finished_at__isnull=False).first()
+        
+        if session:
+            res = 'Зачёт' if session.passed else 'Незачёт'
+            row_data = [
+                str(i + 1), student.full_name_short, student.login, '', # Компьютер пока пуст
+                str(session.correct_count), str(session.total_questions),
+                f'{session.percent_correct}%'.replace('.', ','), res
+            ]
+        else:
+            row_data = [str(i + 1), student.full_name_short, student.login, '', '', '', '', 'Не проходил']
+
+        for col_idx, val in enumerate(row_data, start=1):
+            ws.cell(row=data_row_idx + i, column=col_idx, value=val)
 
     buffer = io.BytesIO()
     wb.save(buffer)

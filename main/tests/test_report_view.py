@@ -1,6 +1,10 @@
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from main.models import ReportTemplate
+
 import pytest
 from django.urls import reverse
-from main.services import finish_test
+from main.services import finish_test, build_report_template_xlsx
 
 
 class TestReportView:
@@ -42,3 +46,49 @@ class TestReportView:
         
         assert response.status_code == 200
         assert 'Шаблон индивидуального отчёта не загружен' in response.content.decode()
+
+
+@pytest.fixture
+def setup_summary_template(db):
+    buffer = build_report_template_xlsx()
+    file = SimpleUploadedFile('summary.xlsx', buffer.read(), content_type='application/vnd...')
+    return ReportTemplate.objects.create(template_type='summary', file=file)
+
+
+@pytest.fixture
+def setup_individual_template(db):
+    buffer = build_report_template_xlsx()
+    file = SimpleUploadedFile('individual.xlsx', buffer.read(), content_type='application/vnd...')
+    return ReportTemplate.objects.create(template_type='individual', file=file)
+
+
+class TestAdminReportViews:
+    def test_group_summary_download(
+        self, admin_client, student_user, setup_summary_template
+    ):
+        url = reverse('admin:main_group_export_summary', args=[student_user.group.id])
+        response = admin_client.get(url)
+        
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        assert 'summary_' in response['Content-Disposition']
+
+    def test_group_summary_missing_template(
+        self, admin_client, student_user, follow=True
+    ):
+        url = reverse('admin:main_group_export_summary', args=[student_user.group.id])
+        response = admin_client.get(url, follow=True)
+        
+        # Редирект на страницу группы с сообщением
+        assert response.status_code == 200
+        assert 'Шаблон сводного отчёта не загружен' in response.content.decode()
+
+    def test_student_report_download(
+        self, admin_client, student_user, setup_individual_template
+    ):
+        url = reverse('admin:main_student_export_report', args=[student_user.id])
+        response = admin_client.get(url)
+        
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        assert 'report_' in response['Content-Disposition']

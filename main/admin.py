@@ -23,6 +23,8 @@ from .services import (
     regenerate_password,
     import_computer_mapping_xlsx,
     export_computer_mapping_xlsx,
+    export_group_summary_xlsx,
+    export_student_report_xlsx,
 )
 
 XLSX_CONTENT_TYPE = (
@@ -187,6 +189,11 @@ class GroupAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.export_handout_view),
                 name='main_group_export_handout',
             ),
+            path(
+                '<path:object_id>/export-summary/',
+                self.admin_site.admin_view(self.export_summary_view),
+                name='main_group_export_summary',
+            ),
         ]
         return custom + urls
 
@@ -243,7 +250,23 @@ class GroupAdmin(admin.ModelAdmin):
         response = HttpResponse(buffer.getvalue(), content_type=XLSX_CONTENT_TYPE)
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         return response
+    def export_summary_view(self, request, object_id):
+        group = self.get_object(request, object_id)
+        if group is None:
+            return HttpResponseRedirect(reverse('admin:main_group_changelist'))
 
+        try:
+            buffer = export_group_summary_xlsx(group)
+        except ValidationError as exc:
+            for msg in exc.messages:
+                self.message_user(request, msg, level=messages.ERROR)
+            return HttpResponseRedirect(reverse('admin:main_group_change', args=[group.pk]))
+
+        filename = f'summary_{group.slug}_{date.today().strftime("%y%m%d")}.xlsx'
+        response = HttpResponse(buffer.getvalue(), content_type=XLSX_CONTENT_TYPE)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
@@ -280,7 +303,37 @@ class StudentAdmin(admin.ModelAdmin):
             )
             return HttpResponseRedirect(request.path)
         return super().response_change(request, obj)
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                '<path:object_id>/export-report/',
+                self.admin_site.admin_view(self.export_report_view),
+                name='main_student_export_report',
+            ),
+        ]
+        return custom + urls
+    def export_report_view(self, request, object_id):
+        student = self.get_object(request, object_id)
+        if student is None:
+            return HttpResponseRedirect(reverse('admin:main_student_changelist'))
 
+        # Ищем завершённую сессию
+        session = student.test_sessions.filter(finished_at__isnull=False).first()
+
+        try:
+            # client_ip='' так как скачивает админ, а не студент со своего компа
+            buffer = export_student_report_xlsx(student, session, client_ip='')
+        except ValidationError as exc:
+            for msg in exc.messages:
+                self.message_user(request, msg, level=messages.ERROR)
+            return HttpResponseRedirect(reverse('admin:main_student_change', args=[student.pk]))
+
+        filename = f'report_{student.login}_{date.today().strftime("%y%m%d")}.xlsx'
+        response = HttpResponse(buffer.getvalue(), content_type=XLSX_CONTENT_TYPE)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    
 
 admin.site.unregister(User)
 
