@@ -1,5 +1,6 @@
 from datetime import date
 from django.contrib import admin, messages
+from django.contrib.admin.options import ActionLocation  # проверьте точный путь
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.http import HttpResponse, HttpResponseRedirect
@@ -8,7 +9,8 @@ from django.core.exceptions import ValidationError
 from django.template.response import TemplateResponse
 
 from .models import (
-    Answer, Group, Question, SessionQuestion, Specialty, Student, TestSession,
+    Answer, Commission, ComputerMapping, Group, Question,
+    ReportTemplate, SessionQuestion, Specialty, Student, TestSession,
 )
 
 from .forms import StudentImportForm
@@ -364,16 +366,64 @@ class TestSessionAdmin(admin.ModelAdmin):
         'passed', 'current_index',
     )
     inlines = [SessionQuestionInline]
+    actions = ['reset_sessions']
 
     @admin.display(description='%')
     def percent_correct_display(self, obj):
         return obj.percent_correct
 
+    @admin.action(description='Сбросить сессии (для пересдачи)')
+    def reset_sessions(self, request, queryset):
+        count = queryset.count()
+        # каскадом уедут SessionQuestion
+        queryset.delete()
+        self.message_user(
+            request,
+            f'Сброшено сессий: {count}. Студенты смогут пройти тест заново.',
+            level=messages.SUCCESS,
+        )
+
     def has_add_permission(self, request):
         return False
 
     def has_change_permission(self, request, obj=None):
-        # только просмотр, но не редактирование
         return False
 
-    
+    def get_actions(self, request, action_location=ActionLocation.CHANGE_LIST):
+        actions = super().get_actions(request, action_location=action_location)
+        actions.pop('delete_selected', None)
+        return actions
+
+
+@admin.register(ComputerMapping)
+class ComputerMappingAdmin(admin.ModelAdmin):
+    list_display = ('ip', 'number')
+    search_fields = ('ip', 'number')
+    ordering = ('ip',)
+
+
+@admin.register(ReportTemplate)
+class ReportTemplateAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'template_type', 'file', 'uploaded_at')
+    readonly_fields = ('uploaded_at',)
+
+    def has_add_permission(self, request):
+        # кнопка «Добавить» — только если не все типы заведены
+        existing = set(
+            ReportTemplate.objects.values_list('template_type', flat=True)
+        )
+        all_types = {choice[0] for choice in ReportTemplate.TYPE_CHOICES}
+        return existing != all_types
+
+    def has_delete_permission(self, request, obj=None):
+        # шаблон не удаляется, только заменяется
+        return False
+
+
+@admin.register(Commission)
+class CommissionAdmin(admin.ModelAdmin):
+    list_display = ('group', 'chairman', 'secretary')
+    list_filter = ('group__specialty',)
+    search_fields = ('group__name', 'chairman', 'secretary')
+    autocomplete_fields = ('group',)
+

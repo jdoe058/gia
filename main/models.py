@@ -260,3 +260,74 @@ class SessionQuestion(models.Model):
     def __str__(self):
         return f'{self.session} — Q{self.position + 1}'
 
+
+class ComputerMapping(models.Model):
+    ip = models.GenericIPAddressField('IP-адрес', unique=True)
+    number = models.CharField('Номер компьютера', max_length=20)
+
+    class Meta:
+        verbose_name = 'Маппинг IP → компьютер'
+        verbose_name_plural = 'Маппинг IP → компьютер'
+        ordering = ['ip']
+
+    def __str__(self):
+        return f'{self.ip} → {self.number}'
+
+
+class ReportTemplate(models.Model):
+    TYPE_INDIVIDUAL = 'individual'
+    TYPE_SUMMARY = 'summary'
+    TYPE_CHOICES = [
+        (TYPE_INDIVIDUAL, 'Индивидуальный (для студента)'),
+        (TYPE_SUMMARY, 'Сводный (для группы)'),
+    ]
+
+    template_type = models.CharField(
+        'Тип шаблона',
+        max_length=20,
+        choices=TYPE_CHOICES,
+        unique=True,
+    )
+    file = models.FileField(
+        'Файл шаблона',
+        upload_to='report_templates/',
+        help_text='XLSX-шаблон с плейсхолдерами вида {{student_full_name}}.',
+    )
+    uploaded_at = models.DateTimeField('Загружен', auto_now=True)
+
+    class Meta:
+        verbose_name = 'Шаблон отчёта'
+        verbose_name_plural = 'Шаблоны отчётов'
+        ordering = ['template_type']
+
+    def __str__(self):
+        return self.get_template_type_display()
+
+    def save(self, *args, **kwargs):
+        old = ReportTemplate.objects.filter(pk=self.pk).first() if self.pk else None
+        if old and old.file and old.file != self.file:
+            old.file.delete(save=False)
+        super().save(*args, **kwargs)
+
+
+class Commission(models.Model):
+    group = models.OneToOneField(
+        Group,
+        on_delete=models.CASCADE,
+        related_name='commission',
+        verbose_name='Группа',
+    )
+    chairman = models.CharField('Председатель', max_length=200, blank=True)
+    member1 = models.CharField('Член комиссии 1', max_length=200, blank=True)
+    member2 = models.CharField('Член комиссии 2', max_length=200, blank=True)
+    member3 = models.CharField('Член комиссии 3', max_length=200, blank=True)
+    secretary = models.CharField('Секретарь', max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = 'Комиссия'
+        verbose_name_plural = 'Комиссии'
+        ordering = ['group']
+
+    def __str__(self):
+        return f'Комиссия группы {self.group.name}'
+

@@ -125,6 +125,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
+# Медиа (загруженные файлы: шаблоны отчётов и т.п.)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # Тестирование
 QUESTIONS_PER_TEST = 80
 TEST_DURATION_MINUTES = 90
