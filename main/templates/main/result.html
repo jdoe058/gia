@@ -1,0 +1,61 @@
+{% extends "main/base.html" %}
+
+{% block title %}Результат — ГИА{% endblock %}
+
+{% block content %}
+    <h1>Результат тестирования</h1>
+
+    <div style="padding: 16px; border-radius: 6px; margin-bottom: 24px;
+                {% if session.passed %}background: #f0fff4; border-left: 4px solid #2f855a;
+                {% else %}background: #fff5f5; border-left: 4px solid #c53030;{% endif %}">
+        <p style="margin: 0 0 8px 0;">
+            Правильных ответов:
+            <strong>{{ session.correct_count }}</strong>
+            из {{ session.total_questions }}
+            ({{ session.percent_correct }}%).
+        </p>
+        <p style="margin: 0; font-size: 20px;
+                  {% if session.passed %}color: #2f855a;{% else %}color: #c53030;{% endif %}">
+            <strong>{% if session.passed %}Зачёт{% else %}Незачёт{% endif %}</strong>
+        </p>
+    </div>
+
+    {% if wrong_questions %}
+        <h2 style="font-size: 20px; margin-bottom: 16px;">
+            Разбор ошибок ({{ wrong_questions|length }})
+        </h2>
+
+        {% for sq in wrong_questions %}
+            <div style="margin-bottom: 20px; padding: 16px; background: #fff;
+                        border: 1px solid #e2e8f0; border-radius: 6px;">
+                <p style="margin: 0 0 12px 0; font-weight: 500;">
+                    Вопрос {{ sq.position|add:1 }}. {{ sq.question.text }}
+                </p>
+
+                {% if sq.chosen_answer %}
+                    <p style="margin: 0 0 4px 0; color: #c53030;">
+                        Ваш ответ: {{ sq.chosen_answer.text }}
+                    </p>
+                {% else %}
+                    <p style="margin: 0 0 4px 0; color: #c53030;">
+                        <em>Нет ответа</em>
+                    </p>
+                {% endif %}
+
+                {% if sq.correct_answer %}
+                    <p style="margin: 0; color: #2f855a;">
+                        Правильный ответ: {{ sq.correct_answer.text }}
+                    </p>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <p style="padding: 16px; background: #f0fff4; border-radius: 6px; color: #2f855a;">
+            <strong>Ни одной ошибки.</strong> Отличный результат!
+        </p>
+    {% endif %}
+
+    <div style="margin-top: 32px;">
+        <a href="{% url 'student_dashboard' %}" class="btn">В кабинет</a>
+    </div>
+{% endblock %}

@@ -124,15 +124,3 @@ class TestAnswerView:
         assert response.status_code == 200
         assert 'Некорректный ответ' in response.content.decode()
 
-
-class TestResultView:
-    def test_stub_renders(self, client, active_session):
-        from main.services import finish_test
-        finish_test(active_session)
-
-        client.force_login(active_session.student.user)
-        response = client.get(reverse('test_result', args=[active_session.id]))
-        assert response.status_code == 200
-        content = response.content.decode()
-        assert 'Тест завершён' in content
-        

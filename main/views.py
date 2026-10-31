@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
@@ -180,5 +181,31 @@ def result_view(request, session_id):
     session = get_object_or_404(
         TestSession, id=session_id, student=student,
     )
-    return render(request, 'main/result_stub.html', {'session': session})
+
+    if not session.is_finished:
+        finish_test(session)
+        session.refresh_from_db()
+
+    wrong_questions = list(
+        session.session_questions
+        .filter(Q(is_correct=False) | Q(chosen_answer__isnull=True))
+        .select_related('question', 'chosen_answer')
+        .order_by('position')
+    )
+
+    correct_answers = {
+        a.question_id: a
+        for a in Answer.objects.filter(
+            question_id__in=[sq.question_id for sq in wrong_questions],
+            is_correct=True,
+        )
+    }
+    for sq in wrong_questions:
+        sq.correct_answer = correct_answers.get(sq.question_id)
+
+    context = {
+        'session': session,
+        'wrong_questions': wrong_questions,
+    }
+    return render(request, 'main/result.html', context)
 
