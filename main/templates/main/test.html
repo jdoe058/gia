@@ -1,0 +1,62 @@
+{% extends "main/base.html" %}
+
+{% block title %}Тест — ГИА{% endblock %}
+
+{% block content %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <p style="margin: 0;">
+            Вопрос <strong>{{ position }}</strong> из {{ total }}
+        </p>
+        <p style="margin: 0; color: #c53030;">
+            Осталось: <strong id="timer">--:--</strong>
+        </p>
+    </div>
+
+    <div style="background: #edf2f7; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+        <p style="margin: 0; font-size: 17px;">{{ question.text }}</p>
+    </div>
+
+    <form method="post" action="{% url 'answer' session.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="question_id" value="{{ question.id }}">
+
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+            {% for answer in answers %}
+                <label style="display: block; padding: 12px 16px; background: #fff; border: 1px solid #cbd5e0; border-radius: 6px; cursor: pointer;">
+                    <input type="radio" name="answer_id" value="{{ answer.id }}" required style="margin-right: 8px;">
+                    {{ answer.text }}
+                </label>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="btn">Ответить и продолжить</button>
+    </form>
+
+    <p style="margin-top: 24px; color: #666; font-size: 14px;">
+        Вернуться к предыдущим вопросам нельзя.
+    </p>
+
+    <script>
+        (function () {
+            const deadline = new Date("{{ deadline_iso }}").getTime();
+            const resultUrl = "{% url 'test_result' session.id %}";
+            const timerEl = document.getElementById('timer');
+
+            function tick() {
+                const diff = deadline - Date.now();
+                if (diff <= 0) {
+                    timerEl.textContent = '00:00';
+                    window.location.href = resultUrl;
+                    return;
+                }
+                const totalSec = Math.floor(diff / 1000);
+                const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+                const s = String(totalSec % 60).padStart(2, '0');
+                timerEl.textContent = m + ':' + s;
+            }
+
+            tick();
+            setInterval(tick, 1000);
+        })();
+    </script>
+{% endblock %}

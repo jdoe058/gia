@@ -5,10 +5,11 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from .forms import StudentLoginForm
-from .models import TestSession
-from .services import start_test_session
+from .models import Answer, SessionQuestion, TestSession
+from .services import answer_question, finish_test, start_test_session
 
 
 def login_view(request):
@@ -104,8 +105,80 @@ def test_view(request, session_id):
         TestSession, id=session_id, student=student,
     )
 
-    if session.is_finished:
-        return redirect('student_dashboard')
+    if session.is_expired:
+        finish_test(session)
+        return redirect('test_result', session_id=session.id)
 
-    # Заглушка — страница прохождения появится в блоке Г
-    return render(request, 'main/test_stub.html', {'session': session})
+    if session.is_finished:
+        return redirect('test_result', session_id=session.id)
+
+    if session.current_index >= session.total_questions:
+        finish_test(session)
+        return redirect('test_result', session_id=session.id)
+
+    sq = session.session_questions.select_related('question').get(
+        position=session.current_index,
+    )
+
+    # ответы в порядке answer_order
+    answer_ids = sq.answer_order
+    answer_map = {
+        a.id: a for a in Answer.objects.filter(id__in=answer_ids)
+    }
+    answers = [answer_map[aid] for aid in answer_ids if aid in answer_map]
+
+    context = {
+        'session': session,
+        'sq': sq,
+        'question': sq.question,
+        'answers': answers,
+        'position': session.current_index + 1,
+        'total': session.total_questions,
+        'deadline_iso': session.deadline_at.isoformat(),
+    }
+    return render(request, 'main/test.html', context)
+
+
+@login_required
+@require_POST
+def answer_view(request, session_id):
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('login')
+
+    student = request.user.student_profile
+    session = get_object_or_404(
+        TestSession, id=session_id, student=student,
+    )
+
+    try:
+        question_id = int(request.POST.get('question_id', 0))
+        answer_id = int(request.POST.get('answer_id', 0))
+    except (TypeError, ValueError):
+        messages.error(request, 'Некорректный ответ.')
+        return redirect('test', session_id=session.id)
+
+    try:
+        next_sq = answer_question(session, question_id, answer_id)
+    except ValidationError as exc:
+        for msg in exc.messages:
+            messages.error(request, msg)
+        return redirect('test', session_id=session.id)
+
+    if next_sq is None:
+        finish_test(session)
+        return redirect('test_result', session_id=session.id)
+
+    return redirect('test', session_id=session.id)
+
+
+@login_required
+def result_view(request, session_id):
+    if not hasattr(request.user, 'student_profile'):
+        return redirect('login')
+
+    student = request.user.student_profile
+    session = get_object_or_404(
+        TestSession, id=session_id, student=student,
+    )
+    return render(request, 'main/result_stub.html', {'session': session})
+

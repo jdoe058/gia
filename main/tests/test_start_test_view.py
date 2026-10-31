@@ -84,16 +84,6 @@ class TestTestView:
         response = client.get(reverse('test', args=[session.id]))
         assert response.status_code == 404
 
-    def test_stub_renders(self, client, student_user, make_questions):
-        make_questions(student_user.group.specialty, 100)
-        client.force_login(student_user.user)
-        client.post(reverse('start_test'))
-        session = TestSession.objects.get(student=student_user)
-
-        response = client.get(reverse('test', args=[session.id]))
-        assert response.status_code == 200
-        assert 'Тест создан' in response.content.decode()
-
 
 class TestDashboardStates:
     def test_shows_start_button_when_no_session(
