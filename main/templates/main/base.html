@@ -9,8 +9,20 @@
 </head>
 <body>
     <header class="site-header">
-        <div class="container">
-            <a href="/" class="site-title">ГИА — тестирование студентов</a>
+        <div class="container header-inner">
+            {% if user.is_authenticated %}
+                <a href="{% url 'student_dashboard' %}" class="site-title">
+                    ГИА — тестирование студентов
+                </a>
+                <nav class="header-nav">
+                    <span class="header-user">{{ user.student_profile.full_name_short }}</span>
+                    <a href="{% url 'logout' %}" class="header-link">Выйти</a>
+                </nav>
+            {% else %}
+                <a href="{% url 'login' %}" class="site-title">
+                    ГИА — тестирование студентов
+                </a>
+            {% endif %}
         </div>
     </header>
 

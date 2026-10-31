@@ -107,3 +107,32 @@ form input[type="password"]:focus {
     color: #234e52;
     margin-bottom: 8px;
 }
+
+.header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.header-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-user {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.header-link {
+    color: #bee3f8;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.header-link:hover {
+    color: #fff;
+    text-decoration: underline;
+}
