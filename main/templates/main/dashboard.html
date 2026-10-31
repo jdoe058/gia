@@ -6,18 +6,59 @@
     <h1>Личный кабинет</h1>
 
     <p>
-        Здравствуйте, <strong>{{ user.student_profile.full_name_short }}</strong>.
+        Здравствуйте, <strong>{{ student.full_name_short }}</strong>.
     </p>
     <p>
-        Специальность: {{ user.student_profile.group.specialty.name }}<br>
-        Группа: {{ user.student_profile.group.name }}
+        Специальность: {{ specialty.name }}<br>
+        Группа: {{ student.group.name }}
     </p>
 
     <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
 
-    <p style="color: #666;">
-        Тестирование скоро будет доступно. Следите за объявлениями.
-    </p>
+    {% if finished_session %}
+        <h2 style="font-size: 20px; margin-bottom: 12px;">Результат тестирования</h2>
+        <p>
+            Правильных ответов: <strong>{{ finished_session.correct_count }}</strong>
+            из {{ finished_session.total_questions }}
+            ({{ finished_session.percent_correct }}%).
+        </p>
+        <p>
+            {% if finished_session.passed %}
+                <strong style="color: #2f855a;">Зачёт</strong>
+            {% else %}
+                <strong style="color: #c53030;">Незачёт</strong>
+            {% endif %}
+        </p>
+    {% elif active_session %}
+        <h2 style="font-size: 20px; margin-bottom: 12px;">Тест начат</h2>
+        <p>
+            Тест уже идёт. Вопросов: {{ active_session.total_questions }}.
+            Начат: {{ active_session.started_at|date:"d.m.Y H:i" }}.
+        </p>
+        <form method="get" action="{% url 'test' active_session.id %}">
+            <button type="submit" class="btn">Продолжить</button>
+        </form>
+    {% elif not enough_questions %}
+        <h2 style="font-size: 20px; margin-bottom: 12px;">Тест недоступен</h2>
+        <p style="color: #c53030;">
+            Недостаточно вопросов в банке специальности:
+            {{ questions_available }} из {{ questions_needed }}.
+            Обратитесь к администратору.
+        </p>
+    {% else %}
+        <h2 style="font-size: 20px; margin-bottom: 12px;">Тестирование</h2>
+        <p>
+            Вам предстоит ответить на {{ questions_needed }} вопросов
+            за {{ duration_minutes }} минут.
+        </p>
+        <p>
+            Порог для зачёта: {{ pass_threshold }}% правильных.
+        </p>
+        <form method="post" action="{% url 'start_test' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn">Начать тест</button>
+        </form>
+    {% endif %}
 
     <div style="margin-top: 32px;">
         <a href="{% url 'logout' %}" class="btn">Выйти</a>

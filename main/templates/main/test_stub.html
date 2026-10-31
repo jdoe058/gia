@@ -1,0 +1,22 @@
+{% extends "main/base.html" %}
+
+{% block title %}Тест — ГИА{% endblock %}
+
+{% block content %}
+    <h1>Тест создан</h1>
+
+    <p>
+        Вопросов: <strong>{{ session.total_questions }}</strong><br>
+        Начат: {{ session.started_at|date:"d.m.Y H:i" }}<br>
+        Дедлайн: {{ session.deadline_at|date:"d.m.Y H:i" }}
+    </p>
+
+    <p style="color: #666; margin-top: 24px;">
+        Страница прохождения теста появится в следующем обновлении.
+        Пока можно вернуться в личный кабинет.
+    </p>
+
+    <div style="margin-top: 24px;">
+        <a href="{% url 'student_dashboard' %}" class="btn">В кабинет</a>
+    </div>
+{% endblock %}
