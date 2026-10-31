@@ -6,6 +6,7 @@ from openpyxl import Workbook
 from django.contrib.auth import get_user_model
 
 from main.models import Answer, Question, Specialty
+from main.services import start_test_session
 
 
 @pytest.fixture
@@ -90,3 +91,11 @@ def make_questions():
                 )
 
     return _make
+
+
+@pytest.fixture
+def active_session(student_user, make_questions):
+    """Готовая сессия студента с 80 вопросами."""
+    make_questions(student_user.group.specialty, 100)
+    return start_test_session(student_user)
+

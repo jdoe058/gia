@@ -79,3 +79,69 @@ def start_test_session(student):
         raise ValidationError(f'Ошибка при создании сессии: {exc}')
 
     return session
+
+
+def finish_test(session):
+    """
+    Завершает сессию: считает правильные, ставит passed и finished_at.
+    Идемпотентно — повторный вызов ничего не меняет.
+    """
+    if session.is_finished:
+        return session
+
+    correct = session.session_questions.filter(is_correct=True).count()
+    total = session.total_questions
+    # без float: correct * 100 / total >= threshold
+    # → correct * 100 >= total * threshold
+    passed = correct * 100 >= total * settings.PASS_THRESHOLD_PERCENT
+
+    with transaction.atomic():
+        session.correct_count = correct
+        session.passed = passed
+        session.finished_at = timezone.now()
+        session.save(update_fields=['correct_count', 'passed', 'finished_at'])
+
+    return session
+
+
+def answer_question(session, question_id, answer_id):
+    """
+    Сохраняет ответ студента на текущий вопрос сессии.
+
+    Возвращает следующую SessionQuestion или None, если это был последний
+    (сессия при этом НЕ завершается — это делает вызывающий код).
+    """
+    if session.is_finished:
+        raise ValidationError('Тест уже завершён.')
+
+    if session.is_expired:
+        raise ValidationError('Время теста истекло.')
+
+    try:
+        sq = SessionQuestion.objects.select_related('question').get(
+            session=session, question_id=question_id,
+        )
+    except SessionQuestion.DoesNotExist:
+        raise ValidationError('Вопрос не принадлежит этой сессии.')
+
+    if sq.position != session.current_index:
+        raise ValidationError('Это не текущий вопрос.')
+
+    if sq.chosen_answer_id is not None:
+        raise ValidationError('Ответ на этот вопрос уже дан.')
+
+    answer = sq.question.answers.filter(id=answer_id).first()
+    if answer is None:
+        raise ValidationError('Ответ не принадлежит этому вопросу.')
+
+    with transaction.atomic():
+        sq.chosen_answer = answer
+        sq.is_correct = answer.is_correct
+        sq.answered_at = timezone.now()
+        sq.save(update_fields=['chosen_answer', 'is_correct', 'answered_at'])
+
+        session.current_index += 1
+        session.save(update_fields=['current_index'])
+
+    return session.session_questions.filter(position=session.current_index).first()
+
