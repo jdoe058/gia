@@ -53,8 +53,14 @@ User = get_user_model()
 
 @admin.register(Specialty)
 class SpecialtyAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name')
-    search_fields = ('code', 'name')
+    list_display = ('code', 'name', 'slug')
+    search_fields = ('code', 'name', 'slug')
+    readonly_fields = ('slug',)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return ()
+        return ('slug',)
 
 
 @admin.register(Group)

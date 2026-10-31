@@ -6,6 +6,18 @@ from django.core.validators import MinValueValidator, MaxValueValidator, RegexVa
 class Specialty(models.Model):
     code = models.CharField('Код', max_length=20, unique=True)
     name = models.CharField('Название', max_length=200)
+    slug = models.SlugField(
+        'Слаг',
+        max_length=20,
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r'^[a-z0-9]+$',
+                message='Только строчные латинские буквы и цифры, без пробелов и дефисов.',
+            ),
+        ],
+        help_text='Короткий идентификатор для файлов и URL. Например: sd.',
+    )
 
     class Meta:
         verbose_name = 'Специальность'

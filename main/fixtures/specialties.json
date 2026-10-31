@@ -1,0 +1,32 @@
+[
+  {
+    "model": "main.specialty",
+    "pk": 1,
+    "fields": {"code": "31.02.02", "name": "Акушерское дело", "slug": "ad"}
+  },
+  {
+    "model": "main.specialty",
+    "pk": 2,
+    "fields": {"code": "33.02.01", "name": "Фармация", "slug": "farm"}
+  },
+  {
+    "model": "main.specialty",
+    "pk": 3,
+    "fields": {"code": "31.02.03", "name": "Лабораторная диагностика", "slug": "lab"}
+  },
+  {
+    "model": "main.specialty",
+    "pk": 4,
+    "fields": {"code": "31.02.01", "name": "Лечебное дело", "slug": "ld"}
+  },
+  {
+    "model": "main.specialty",
+    "pk": 5,
+    "fields": {"code": "34.02.01", "name": "Сестринское дело", "slug": "sd"}
+  },
+  {
+    "model": "main.specialty",
+    "pk": 6,
+    "fields": {"code": "31.02.05", "name": "Стоматология ортопедическая", "slug": "stom"}
+  }
+]
