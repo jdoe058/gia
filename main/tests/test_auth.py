@@ -100,3 +100,22 @@ class TestLogout:
         assert dashboard.status_code == 302
         assert reverse('login') in dashboard.url
 
+
+class TestRootView:
+    def test_anonymous_redirects_to_login(self, client):
+        response = client.get('/')
+        assert response.status_code == 302
+        assert response.url == reverse('login')
+
+    def test_student_redirects_to_dashboard(self, client, student_user):
+        client.force_login(student_user.user)
+        response = client.get('/')
+        assert response.status_code == 302
+        assert response.url == reverse('student_dashboard')
+
+    def test_admin_redirects_to_admin(self, client, admin_user):
+        client.force_login(admin_user)
+        response = client.get('/')
+        assert response.status_code == 302
+        assert response.url == reverse('admin:index')
+

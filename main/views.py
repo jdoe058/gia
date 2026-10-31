@@ -241,3 +241,11 @@ def student_report_view(request, session_id):
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
 
+
+def root_view(request):
+    if request.user.is_authenticated:
+        if hasattr(request.user, 'student_profile'):
+            return redirect('student_dashboard')
+        return redirect('admin:index')
+    return redirect('login')
+
