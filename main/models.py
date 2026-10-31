@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
+from django.utils import timezone
 
 
 class Specialty(models.Model):
@@ -183,7 +184,7 @@ class TestSession(models.Model):
         related_name='test_sessions',
         verbose_name='Специальность',
     )
-    started_at = models.DateTimeField('Начат', auto_now_add=True)
+    started_at = models.DateTimeField('Начат', default=timezone.now)
     deadline_at = models.DateTimeField('Дедлайн')
     finished_at = models.DateTimeField('Завершён', null=True, blank=True)
     total_questions = models.PositiveSmallIntegerField('Всего вопросов')
