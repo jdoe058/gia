@@ -10,6 +10,8 @@ from .xlsx import (
     import_students_from_xlsx,
     import_computer_mapping_xlsx,
     export_computer_mapping_xlsx,
+    export_student_report_xlsx,
+    get_client_ip,
 )
 
 __all__ = [
@@ -29,5 +31,7 @@ __all__ = [
     'start_test_session',
     'import_computer_mapping_xlsx',
     'export_computer_mapping_xlsx',
+    'export_student_report_xlsx',
+    'get_client_ip',
 ]
 

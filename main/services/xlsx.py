@@ -3,8 +3,9 @@ import ipaddress
 from copy import copy
 from datetime import date
 
+from django.utils import timezone
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Alignment, Border, Side
+from openpyxl.styles import Alignment, Border, Font, Side
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -492,6 +493,140 @@ def export_computer_mapping_xlsx():
 
     ws.column_dimensions['A'].width = 20
     ws.column_dimensions['B'].width = 20
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+def build_report_template_xlsx():
+    """
+    Возвращает BytesIO с XLSX-шаблоном индивидуального отчёта.
+    Содержит плейсхолдеры для заполнения.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Отчёт'
+
+    bold_font = Font(bold=True)
+    center_align = Alignment(horizontal='center', vertical='center')
+    
+    ws.append(['ГОСУДАРСТВЕННАЯ ИТОГОВАЯ АТТЕСТАЦИЯ'])
+    ws.cell(row=1, column=1).font = Font(bold=True, size=14)
+    ws.cell(row=1, column=1).alignment = center_align
+    
+    ws.append([])
+    ws.append(['Специальность:', '{{specialty_code}} {{specialty_name}}'])
+    ws.append(['Группа:', '{{group_name}}'])
+    ws.append(['Дата:', '{{report_date}}'])
+    
+    ws.append([])
+    ws.append(['ВЫПИСКА О РЕЗУЛЬТАТАХ ТЕСТИРОВАНИЯ'])
+    ws.cell(row=7, column=1).font = bold_font
+    ws.cell(row=7, column=1).alignment = center_align
+    
+    ws.append([])
+    ws.append(['Студент:', '{{student_full_name}}'])
+    ws.append(['Логин:', '{{student_login}}'])
+    ws.append(['Номер компьютера:', '{{computer_number}}'])
+    ws.append(['Начало тестирования:', '{{test_started_at}}'])
+    ws.append(['Завершение тестирования:', '{{test_finished_at}}'])
+    
+    ws.append([])
+    ws.append(['Результат:', '{{result}}'])
+    ws.cell(row=14, column=2).font = bold_font
+    ws.append(['Правильных ответов:', '{{correct_count}} из {{total_questions}} ({{percent}}%)'])
+    
+    ws.append([])
+    ws.append(['Состав комиссии:'])
+    ws.append(['Председатель:', '{{commission_chairman}}'])
+    ws.append(['Члены комиссии:', '{{commission_member1}}, {{commission_member2}}, {{commission_member3}}'])
+    ws.append(['Секретарь:', '{{commission_secretary}}'])
+    
+    ws.append([])
+    ws.append([])
+    ws.append(['Подпись студента: _________________'])
+    ws.append(['Подпись председателя: _________________'])
+
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 50
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+def get_client_ip(request):
+    """Возвращает IP клиента с учётом прокси."""
+    xff = request.META.get('HTTP_X_FORWARDED_FOR')
+    if xff:
+        return xff.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
+def export_student_report_xlsx(student, session, client_ip=''):
+    """
+    Заполняет шаблон индивидуального отчёта данными студента.
+    Возвращает BytesIO.
+    """
+    from main.models import ComputerMapping, ReportTemplate
+
+    template = ReportTemplate.objects.filter(template_type='individual').first()
+    if not template or not template.file:
+        raise ValidationError('Шаблон индивидуального отчёта не загружен в систему.')
+
+    try:
+        wb = load_workbook(template.file.path)
+    except Exception as exc:
+        raise ValidationError(f'Не удалось открыть шаблон отчёта: {exc}')
+
+    # Подготовка данных
+    computer_number = ''
+    if client_ip:
+        mapping = ComputerMapping.objects.filter(ip=client_ip).first()
+        if mapping:
+            computer_number = mapping.number
+
+    commission = getattr(student.group, 'commission', None)
+    
+    started_at = session.started_at.strftime('%d.%m.%Y %H:%M') if session.started_at else ''
+    finished_at = session.finished_at.strftime('%d.%m.%Y %H:%M') if session.finished_at else ''
+    
+    result_text = 'Зачёт' if session.passed else 'Незачёт'
+
+    replacements = {
+        '{{student_full_name}}': f'{student.last_name} {student.first_name} {student.middle_name}'.strip(),
+        '{{student_full_name_short}}': student.full_name_short,
+        '{{student_login}}': student.login,
+        '{{group_name}}': student.group.name,
+        '{{specialty_name}}': student.group.specialty.name,
+        '{{specialty_code}}': student.group.specialty.code,
+        '{{correct_count}}': str(session.correct_count),
+        '{{total_questions}}': str(session.total_questions),
+        '{{percent}}': str(session.percent_correct).replace('.', ','),
+        '{{result}}': result_text,
+        '{{test_started_at}}': started_at,
+        '{{test_finished_at}}': finished_at,
+        '{{computer_number}}': computer_number,
+        '{{report_date}}': timezone.now().strftime('%d.%m.%Y'),
+        '{{commission_chairman}}': commission.chairman if commission else '',
+        '{{commission_member1}}': commission.member1 if commission else '',
+        '{{commission_member2}}': commission.member2 if commission else '',
+        '{{commission_member3}}': commission.member3 if commission else '',
+        '{{commission_secretary}}': commission.secretary if commission else '',
+    }
+
+    ws = wb.active
+    for row in ws.iter_rows():
+        for cell in row:
+            if isinstance(cell.value, str) and '{{' in cell.value:
+                val = cell.value
+                for key, replacement in replacements.items():
+                    if key in val:
+                        val = val.replace(key, replacement)
+                cell.value = val
 
     buffer = io.BytesIO()
     wb.save(buffer)
