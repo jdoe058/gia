@@ -39,16 +39,18 @@ class TestLogin:
         assert response.status_code == 302
         assert response.url == reverse('student_dashboard')
 
-    def test_admin_rejected_on_login_form(self, client, admin_user):
+    def test_admin_redirected_to_admin_panel(self, client, admin_user):
         response = client.post(reverse('login'), {
             'username': admin_user.username,
             'password': 'adminpass123',
         })
-        assert response.status_code == 200
-        assert 'форма входа для студентов' in response.content.decode()
+        # Ожидаем редирект в админку
+        assert response.status_code == 302
+        assert response.url == reverse('admin:index')
 
-        # сессия не создана
-        assert not client.session.get('_auth_user_id')
+        # Проверяем, что пользователь авторизован
+        dashboard = client.get(reverse('admin:index'))
+        assert dashboard.status_code == 200
 
     def test_authenticated_user_redirected_from_login(
         self, client, student_user,

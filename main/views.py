@@ -26,17 +26,22 @@ def login_view(request):
             username = form.cleaned_data['username']
             password = form.cleaned_data['password']
             user = authenticate(request, username=username, password=password)
-            if user is None:
-                form.add_error(None, 'Неверный логин или пароль')
-            elif not hasattr(user, 'student_profile'):
+        if user is None:
+            form.add_error(None, 'Неверный логин или пароль')
+        elif not hasattr(user, 'student_profile'):
+            # Если это администратор, пускаем его в админку
+            if user.is_staff:
+                login(request, user)
+                return redirect('admin:index')
+            else:
+                # Если это какой-то странный юзер без профиля и без прав
                 form.add_error(
                     None,
-                    'Это форма входа для студентов. '
-                    'Администратор входит через /admin/.',
+                    'Это форма входа для студентов. Администратор входит через /admin/.',
                 )
-            else:
-                login(request, user)
-                return redirect('student_dashboard')
+        else:
+            login(request, user)
+            return redirect('student_dashboard')
     else:
         form = StudentLoginForm()
 

@@ -125,7 +125,7 @@ class TestDashboardStates:
         client.force_login(student_user.user)
         response = client.get(reverse('student_dashboard'))
         content = response.content.decode()
-        assert 'Незачёт' in content
+        assert 'НЕЗАЧЁТ' in content
         assert '60' in content
 
     def test_shows_insufficient_when_bank_small(
