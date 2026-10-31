@@ -1,4 +1,5 @@
 import io
+import ipaddress
 from copy import copy
 from datetime import date
 
@@ -9,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from .students import create_student
-from main.models import Answer, Question
+from main.models import Answer, Question, ComputerMapping
 
 TEMPLATE_HEADERS = ['Фамилия', 'Имя', 'Отчество']
 TEMPLATE_EXAMPLES = [
@@ -385,4 +386,115 @@ def import_specialty_questions_xlsx(specialty, file_obj):
         raise ValidationError(f'Ошибка при сохранении: {exc}')
 
     return len(blocks)
+
+
+def import_computer_mapping_xlsx(file_obj):
+    """
+    Импортирует маппинг IP → номер компьютера из XLSX.
+    Колонки: IP | Номер.
+    """
+    if ComputerMapping.objects.exists():
+        raise ValidationError(
+            'Маппинг уже загружен. Удалите существующие записи '
+            'перед повторной загрузкой.'
+        )
+
+    try:
+        wb = load_workbook(file_obj, data_only=True)
+    except Exception as exc:
+        raise ValidationError(f'Не удалось прочитать файл: {exc}')
+
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    wb.close()
+
+    if not rows:
+        raise ValidationError('Файл пуст.')
+
+    header = tuple(
+        (c or '').strip() if c is not None else ''
+        for c in rows[0][:2]
+    )
+    if header != ('IP', 'Номер'):
+        raise ValidationError(
+            f'Неверные заголовки. Ожидается: IP, Номер. '
+            f'Получено: {", ".join(header)}.'
+        )
+
+    errors = []
+    valid_rows = []
+    seen_ips = set()
+
+    for idx, row in enumerate(rows[1:], start=2):
+        cells = list(row[:2]) + [None] * (2 - len(row[:2]))
+        ip_str = (cells[0] or '').strip() if cells[0] is not None else ''
+        num_str = (cells[1] or '').strip() if cells[1] is not None else ''
+
+        if not ip_str and not num_str:
+            continue  # пустая строка
+
+        if not ip_str:
+            errors.append(f'Строка {idx}: пустой IP.')
+            continue
+            
+        if not num_str:
+            errors.append(f'Строка {idx}: пустой номер компьютера.')
+            continue
+
+        try:
+            ipaddress.ip_address(ip_str)
+        except ValueError:
+            errors.append(f'Строка {idx}: некорректный IP "{ip_str}".')
+            continue
+
+        if ip_str in seen_ips:
+            errors.append(f'Строка {idx}: дубликат IP "{ip_str}".')
+            continue
+
+        seen_ips.add(ip_str)
+        valid_rows.append((ip_str, num_str))
+
+    if errors:
+        raise ValidationError(errors)
+
+    if not valid_rows:
+        raise ValidationError('В файле нет данных для загрузки.')
+
+    try:
+        with transaction.atomic():
+            ComputerMapping.objects.bulk_create([
+                ComputerMapping(ip=ip, number=num) for ip, num in valid_rows
+            ])
+    except IntegrityError as exc:
+        raise ValidationError(f'Ошибка при сохранении: {exc}')
+
+    return len(valid_rows)
+
+
+def export_computer_mapping_xlsx():
+    """
+    Возвращает BytesIO с XLSX-файлом маппинга IP → номер компьютера.
+    Колонки: IP | Номер.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Маппинг'
+
+    ws.append(['IP', 'Номер'])
+    for cell in ws[1]:
+        font = copy(cell.font)
+        font.bold = True
+        cell.font = font
+
+    mappings = ComputerMapping.objects.order_by('ip')
+    for m in mappings:
+        ws.append([m.ip, m.number])
+
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 20
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
 

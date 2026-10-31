@@ -8,6 +8,8 @@ from .xlsx import (
     export_specialty_questions_xlsx,
     import_specialty_questions_xlsx,  
     import_students_from_xlsx,
+    import_computer_mapping_xlsx,
+    export_computer_mapping_xlsx,
 )
 
 __all__ = [
@@ -25,5 +27,7 @@ __all__ = [
     'import_students_from_xlsx',
     'regenerate_password',
     'start_test_session',
+    'import_computer_mapping_xlsx',
+    'export_computer_mapping_xlsx',
 ]
 

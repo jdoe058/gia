@@ -21,6 +21,8 @@ from .services import (
     import_specialty_questions_xlsx,
     import_students_from_xlsx,
     regenerate_password,
+    import_computer_mapping_xlsx,
+    export_computer_mapping_xlsx,
 )
 
 XLSX_CONTENT_TYPE = (
@@ -400,6 +402,54 @@ class ComputerMappingAdmin(admin.ModelAdmin):
     list_display = ('ip', 'number')
     search_fields = ('ip', 'number')
     ordering = ('ip',)
+    change_list_template = 'admin/main/computermapping/change_list.html'
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                'import-mapping/',
+                self.admin_site.admin_view(self.import_mapping_view),
+                name='main_computermapping_import',
+            ),
+            path(
+                'export-mapping/',
+                self.admin_site.admin_view(self.export_mapping_view),
+                name='main_computermapping_export',
+            ),
+        ]
+        return custom + urls
+
+    def export_mapping_view(self, request):
+        buffer = export_computer_mapping_xlsx()
+        filename = f'mapping_{date.today().strftime("%y%m%d")}.xlsx'
+        response = HttpResponse(buffer.getvalue(), content_type=XLSX_CONTENT_TYPE)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+    def import_mapping_view(self, request):
+        if request.method == 'POST':
+            file = request.FILES.get('file')
+            if file is None:
+                self.message_user(request, 'Файл не выбран.', level=messages.ERROR)
+            else:
+                try:
+                    count = import_computer_mapping_xlsx(file)
+                except ValidationError as exc:
+                    for msg in exc.messages:
+                        self.message_user(request, msg, level=messages.ERROR)
+                else:
+                    self.message_user(request, f'Импортировано IP-адресов: {count}.')
+                    return HttpResponseRedirect(
+                        reverse('admin:main_computermapping_changelist')
+                    )
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Импорт маппинга IP',
+            'opts': self.model._meta,
+        }
+        return TemplateResponse(request, 'admin/main/computermapping/import_mapping.html', context)
 
 
 @admin.register(ReportTemplate)
