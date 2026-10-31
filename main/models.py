@@ -168,4 +168,93 @@ class Answer(models.Model):
 
     def __str__(self):
         return self.text[:80]
-    
+
+
+class TestSession(models.Model):
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='test_sessions',
+        verbose_name='Студент',
+    )
+    specialty = models.ForeignKey(
+        Specialty,
+        on_delete=models.PROTECT,
+        related_name='test_sessions',
+        verbose_name='Специальность',
+    )
+    started_at = models.DateTimeField('Начат', auto_now_add=True)
+    deadline_at = models.DateTimeField('Дедлайн')
+    finished_at = models.DateTimeField('Завершён', null=True, blank=True)
+    total_questions = models.PositiveSmallIntegerField('Всего вопросов')
+    correct_count = models.PositiveSmallIntegerField('Правильных', default=0)
+    passed = models.BooleanField('Зачёт', default=False)
+    current_index = models.PositiveSmallIntegerField('Текущий вопрос', default=0)
+
+    class Meta:
+        verbose_name = 'Сессия тестирования'
+        verbose_name_plural = 'Сессии тестирования'
+        ordering = ['-started_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'specialty'],
+                name='unique_test_session_per_specialty',
+            ),
+        ]
+
+    @property
+    def is_finished(self):
+        return self.finished_at is not None
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        return not self.is_finished and timezone.now() > self.deadline_at
+
+    @property
+    def percent_correct(self):
+        if not self.total_questions:
+            return 0
+        return round(self.correct_count * 100 / self.total_questions, 1)
+
+    def __str__(self):
+        return f'{self.student} — {self.specialty} — {self.started_at:%d.%m.%Y}'
+
+
+class SessionQuestion(models.Model):
+    session = models.ForeignKey(
+        TestSession,
+        on_delete=models.CASCADE,
+        related_name='session_questions',
+        verbose_name='Сессия',
+    )
+    question = models.ForeignKey(
+        Question,
+        on_delete=models.PROTECT,
+        verbose_name='Вопрос',
+    )
+    position = models.PositiveSmallIntegerField('Позиция')
+    answer_order = models.JSONField('Порядок ответов', default=list)
+    chosen_answer = models.ForeignKey(
+        Answer,
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        verbose_name='Выбранный ответ',
+    )
+    is_correct = models.BooleanField('Правильный', default=False)
+    answered_at = models.DateTimeField('Отвечен', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'Вопрос сессии'
+        verbose_name_plural = 'Вопросы сессии'
+        ordering = ['session', 'position']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['session', 'position'],
+                name='unique_question_position_in_session',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.session} — Q{self.position + 1}'
+

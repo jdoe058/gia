@@ -7,7 +7,9 @@ from django.urls import path, reverse
 from django.core.exceptions import ValidationError
 from django.template.response import TemplateResponse
 
-from .models import Answer, Group, Question, Specialty, Student
+from .models import (
+    Answer, Group, Question, SessionQuestion, Specialty, Student, TestSession,
+)
 
 from .forms import StudentImportForm
 from .services import (
@@ -329,3 +331,49 @@ class QuestionAdmin(admin.ModelAdmin):
     def answers_count(self, obj):
         return obj.answers.count()
 
+
+class SessionQuestionInline(admin.TabularInline):
+    model = SessionQuestion
+    extra = 0
+    can_delete = False
+    fields = (
+        'position', 'question', 'chosen_answer',
+        'is_correct', 'answered_at',
+    )
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(TestSession)
+class TestSessionAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'student', 'specialty', 'started_at',
+        'finished_at', 'correct_count', 'total_questions',
+        'percent_correct_display', 'passed',
+    )
+    list_filter = ('specialty', 'passed', 'finished_at')
+    search_fields = (
+        'student__last_name', 'student__first_name',
+        'student__group__name',
+    )
+    readonly_fields = (
+        'student', 'specialty', 'started_at', 'deadline_at',
+        'finished_at', 'total_questions', 'correct_count',
+        'passed', 'current_index',
+    )
+    inlines = [SessionQuestionInline]
+
+    @admin.display(description='%')
+    def percent_correct_display(self, obj):
+        return obj.percent_correct
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # только просмотр, но не редактирование
+        return False
+
+    

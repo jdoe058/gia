@@ -125,6 +125,11 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
+# Тестирование
+QUESTIONS_PER_TEST = 80
+TEST_DURATION_MINUTES = 90
+PASS_THRESHOLD_PERCENT = 70
+
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
