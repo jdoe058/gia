@@ -3,6 +3,8 @@ import io
 import pytest
 from openpyxl import Workbook
 
+from django.contrib.auth import get_user_model
+
 from main.models import Answer, Question, Specialty
 
 
@@ -40,4 +42,30 @@ def specialty_with_questions(specialty):
     Answer.objects.create(question=q, text='A1', is_correct=True)
     Answer.objects.create(question=q, text='A2')
     return specialty
+
+
+User = get_user_model()
+
+
+@pytest.fixture
+def student_user(db, specialty):
+    """
+    Студент с логином и паролем, готовый к входу.
+    Использует существующую фикстуру specialty (слаг 'sd').
+    """
+    from main.models import Group
+    from main.services import create_student
+
+    group = Group.objects.create(
+        name='СД-21', slug='sd21', course=2,
+        financing='budget', base='9', specialty=specialty,
+    )
+    return create_student(group, 'Иванов', 'Иван', 'Иванович')
+
+
+@pytest.fixture
+def admin_user(db):
+    return User.objects.create_superuser(
+        username='admin', password='adminpass123',
+    )
 
