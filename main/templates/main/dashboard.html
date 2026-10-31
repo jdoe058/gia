@@ -1,71 +1,62 @@
 {% extends "main/base.html" %}
-
 {% block title %}Личный кабинет — ГИА{% endblock %}
 
 {% block content %}
-    <h1>Личный кабинет</h1>
-
-    <p>
-        Здравствуйте, <strong>{{ student.full_name_short }}</strong>.
-    </p>
-    <p>
-        Специальность: {{ specialty.name }}<br>
-        Группа: {{ student.group.name }}
-    </p>
-
-    <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
-
-    {% if finished_session %}
-        <h2 style="font-size: 20px; margin-bottom: 12px;">Результат тестирования</h2>
-        <p>
-            Правильных ответов: <strong>{{ finished_session.correct_count }}</strong>
-            из {{ finished_session.total_questions }}
-            ({{ finished_session.percent_correct }}%).
-        </p>
-        <p>
-            {% if finished_session.passed %}
-                <strong style="color: #2f855a;">Зачёт</strong>
-            {% else %}
-                <strong style="color: #c53030;">Незачёт</strong>
-            {% endif %}
-        </p>
-        <div style="margin-top: 16px;">
-            <a href="{% url 'student_report' finished_session.id %}" class="btn">
-                Скачать отчёт (XLSX)
-            </a>
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h2 class="mb-4">Личный кабинет</h2>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Здравствуйте, <strong>{{ student.full_name_short }}</strong>.</h5>
+                <p class="card-text text-muted">
+                    Специальность: {{ specialty.name }}<br>
+                    Группа: {{ student.group.name }}
+                </p>
+            </div>
         </div>
-    {% elif active_session %}
-        <h2 style="font-size: 20px; margin-bottom: 12px;">Тест начат</h2>
-        <p>
-            Тест уже идёт. Вопросов: {{ active_session.total_questions }}.
-            Начат: {{ active_session.started_at|date:"d.m.Y H:i" }}.
-        </p>
-        <form method="get" action="{% url 'test' active_session.id %}">
-            <button type="submit" class="btn">Продолжить</button>
-        </form>
-    {% elif not enough_questions %}
-        <h2 style="font-size: 20px; margin-bottom: 12px;">Тест недоступен</h2>
-        <p style="color: #c53030;">
-            Недостаточно вопросов в банке специальности:
-            {{ questions_available }} из {{ questions_needed }}.
-            Обратитесь к администратору.
-        </p>
-    {% else %}
-        <h2 style="font-size: 20px; margin-bottom: 12px;">Тестирование</h2>
-        <p>
-            Вам предстоит ответить на {{ questions_needed }} вопросов
-            за {{ duration_minutes }} минут.
-        </p>
-        <p>
-            Порог для зачёта: {{ pass_threshold }}% правильных.
-        </p>
-        <form method="post" action="{% url 'start_test' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn">Начать тест</button>
-        </form>
-    {% endif %}
 
-    <div style="margin-top: 32px;">
-        <a href="{% url 'logout' %}" class="btn">Выйти</a>
+        {% if finished_session %}
+            <div class="card shadow-sm mb-4 border-success">
+                <div class="card-header bg-success text-white">Результат тестирования</div>
+                <div class="card-body">
+                    <p class="fs-5">Правильных ответов: <strong>{{ finished_session.correct_count }}</strong> из {{ finished_session.total_questions }} ({{ finished_session.percent_correct }}%).</p>
+                    
+                    <p class="fs-4 fw-bold {% if finished_session.passed %}text-success{% else %}text-danger{% endif %}">
+                        {% if finished_session.passed %}ЗАЧЁТ{% else %}НЕЗАЧЁТ{% endif %}
+                    </p>
+                    
+                    <a href="{% url 'student_report' finished_session.id %}" class="btn btn-success mt-2">
+                        Скачать отчёт (XLSX)
+                    </a>
+                </div>
+            </div>
+        {% elif active_session %}
+            <div class="card shadow-sm mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">Тест начат</div>
+                <div class="card-body">
+                    <p>Тест уже идёт. Вопросов: {{ active_session.total_questions }}. Начат: {{ active_session.started_at|date:"d.m.Y H:i" }}.</p>
+                    <a href="{% url 'test' active_session.id %}" class="btn btn-warning">Продолжить</a>
+                </div>
+            </div>
+        {% elif not enough_questions %}
+            <div class="alert alert-danger">
+                <strong>Тест недоступен.</strong> Недостаточно вопросов в банке специальности: {{ questions_available }} из {{ questions_needed }}. Обратитесь к администратору.
+            </div>
+        {% else %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Тестирование</h5>
+                    <p>Вам предстоит ответить на <strong>{{ questions_needed }}</strong> вопросов за <strong>{{ duration_minutes }}</strong> минут.</p>
+                    <p class="text-muted small">Порог для зачёта: {{ pass_threshold }}% правильных.</p>
+                    
+                    <form method="post" action="{% url 'start_test' %}" class="mt-4">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary btn-lg">Начать тест</button>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
     </div>
+</div>
 {% endblock %}

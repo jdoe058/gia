@@ -1,37 +1,42 @@
 {% extends "main/base.html" %}
-
 {% block title %}Вход — ГИА{% endblock %}
 
 {% block content %}
-    <h1>Вход в систему</h1>
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h3 class="card-title text-center mb-4">Вход в систему</h3>
+                
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger p-2 text-center small">
+                            {{ form.non_field_errors|join:", " }}
+                        </div>
+                    {% endif %}
 
-    <form method="post" novalidate>
-        {% csrf_token %}
+                    <div class="mb-3">
+                        {{ form.username.label_tag }}
+                        {{ form.username }}
+                        <div class="text-danger small mt-1">{{ form.username.errors|join:", " }}</div>
+                    </div>
 
-        {% if form.non_field_errors %}
-            <ul class="errorlist">
-                {% for error in form.non_field_errors %}
-                    <li>{{ error }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+                    <div class="mb-4">
+                        {{ form.password.label_tag }}
+                        {{ form.password }}
+                        <div class="text-danger small mt-1">{{ form.password.errors|join:", " }}</div>
+                    </div>
 
-        <div class="form-row">
-            {{ form.username.label_tag }}
-            {{ form.username }}
-            {{ form.username.errors }}
+                    <button type="submit" class="btn btn-primary w-100">Войти</button>
+                </form>
+                
+                <div class="mt-3 text-center text-muted small">
+                    Логин и пароль выдаёт администратор колледжа.
+                </div>
+            </div>
         </div>
-
-        <div class="form-row">
-            {{ form.password.label_tag }}
-            {{ form.password }}
-            {{ form.password.errors }}
-        </div>
-
-        <button type="submit" class="btn">Войти</button>
-    </form>
-
-    <p style="margin-top: 24px; color: #666; font-size: 14px;">
-        Логин и пароль выдаёт администратор колледжа.
-    </p>
+    </div>
+</div>
 {% endblock %}

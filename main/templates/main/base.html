@@ -5,43 +5,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ГИА — тестирование{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <!-- Локальный Bootstrap -->
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
 </head>
-<body>
-    <header class="site-header">
-        <div class="container header-inner">
-            <!-- Логотип всегда ведет на корень (умный редирект) -->
-            <a href="{% url 'root' %}" class="site-title">
-                ГИА — тестирование студентов
-            </a>
-            
-            <nav class="header-nav">
+<body class="bg-light">
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'root' %}">ГИА — тестирование</a>
+            <div class="ms-auto d-flex align-items-center">
                 {% if user.is_authenticated %}
-                    <span class="header-user">
+                    <span class="navbar-text text-white me-3">
                         {% if user.student_profile %}
                             {{ user.student_profile.full_name_short }}
                         {% else %}
                             {{ user.username }} (Админ)
                         {% endif %}
                     </span>
-                    <a href="{% url 'logout' %}" class="header-link">Выйти</a>
+                    <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">Выйти</a>
                 {% else %}
-                    <a href="{% url 'login' %}" class="header-link">Войти</a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-sm">Войти</a>
                 {% endif %}
-            </nav>
+            </div>
         </div>
-    </header>
+    </nav>
 
-    <main class="container">
+    <main class="container pb-5">
+        <!-- Уведомления Django -->
         {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-                    <li>{{ message }}</li>
-                {% endfor %}
-            </ul>
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
         {% endif %}
 
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Локальный Bootstrap JS -->
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 </body>
 </html>
