@@ -1,4 +1,5 @@
 import io
+from copy import copy
 from datetime import date
 
 from openpyxl import Workbook, load_workbook
@@ -53,7 +54,9 @@ def export_group_xlsx(group):
 
     ws.append(['ФИО', 'Логин', 'Пароль'])
     for cell in ws[3]:
-        cell.font = cell.font.copy(bold=True)
+        font = copy(cell.font)
+        font.bold = True
+        cell.font = font
 
     students = group.students.select_related('user').order_by('slug')
     for student in students:
@@ -90,7 +93,9 @@ def build_import_template_xlsx():
 
     # Жирная шапка — чтобы при открытии сразу бросалась в глаза
     for cell in ws[1]:
-        cell.font = cell.font.copy(bold=True)
+        font = copy(cell.font)
+        font.bold = True
+        cell.font = font
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -190,7 +195,9 @@ def export_specialty_questions_xlsx(specialty):
 
     ws.append(['Вопрос', 'Ответ', 'Правильный'])
     for cell in ws[1]:
-        cell.font = cell.font.copy(bold=True)
+        font = copy(cell.font)
+        font.bold = True
+        cell.font = font
 
     wrap_top = Alignment(wrap_text=True, vertical='top', horizontal='left')
     wrap_center = Alignment(wrap_text=True, vertical='top', horizontal='center')
